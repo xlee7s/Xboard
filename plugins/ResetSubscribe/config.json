@@ -1,0 +1,30 @@
+{
+    "name": "重置订阅-订阅自焚",
+    "code": "reset_subscribe",
+    "version": "2.0.0",
+    "description": "定时重置用户token，实现订阅自焚与重置",
+    "author": "HuaXianRen",
+    "require": {
+        "xboard": ">=1.0.0"
+    },
+    "config": {
+        "interval_minutes": {
+            "type": "number",
+            "default": 5,
+            "label": "重置间隔（分钟）",
+            "description": "必须大于等于1，违规值强制以1分钟执行"
+        },
+        "enable_log": {
+            "type": "boolean",
+            "default": true,
+            "label": "开启日志",
+            "description": "是否记录插件运行日志"
+        },
+        "status": {
+            "type": "boolean",
+            "default": false,
+            "label": "是否开启任务",
+            "description": "是否开启订阅重置任务"
+        }
+    }
+}
