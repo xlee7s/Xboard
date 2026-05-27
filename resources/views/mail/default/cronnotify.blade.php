@@ -24,10 +24,7 @@
                             padding:26px 34px;
                             color:#ffffff;
                         ">
-                            <div style="
-                                font-size:22px;
-                                font-weight:800;
-                            ">
+                            <div style="font-size:22px;font-weight:800;">
                                 {{$name}}
                             </div>
                         </td>
@@ -38,12 +35,12 @@
                         <td style="padding:38px 34px;">
 
                             <div style="
-                                font-size:18px;
-                                font-weight:700;
+                                font-size:20px;
+                                font-weight:800;
                                 color:#111827;
-                                margin-bottom:16px;
+                                margin-bottom:14px;
                             ">
-                                尊敬的用户您好！
+                                {{$subject}}
                             </div>
 
                             <div style="
@@ -51,10 +48,12 @@
                                 color:#4b5563;
                                 line-height:26px;
                             ">
+                                尊敬的用户您好！<br><br>
+
                                 {!! nl2br($content) !!}
                             </div>
 
-                            <!-- 提示卡片 -->
+                            <!-- 官网信息 -->
                             <div style="
                                 margin-top:28px;
                                 background:#f8fafc;
