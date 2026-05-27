@@ -1,0 +1,42 @@
+{
+    "name": "自动工单回复",
+    "code": "auto_ticket_reply",
+    "version": "2.0.0",
+    "description": "自动关键词回复工单，支持多关键词匹配与日志记录，每分钟检测一次",
+    "author": "HuaXianRen",
+    "require": {
+        "xboard": ">=1.0.0"
+    },
+    "config": {
+        "admin_user_id": {
+            "type": "number",
+            "default": 1,
+            "label": "管理员用户ID",
+            "description": "系统自动回复使用的管理员ID"
+        },
+        "enable_log": {
+            "type": "boolean",
+            "default": true,
+            "label": "开启日志",
+            "description": "是否记录自动回复日志"
+        },
+        "default_reply": {
+            "type": "string",
+            "default": "[自动回复]您好，工单已收到，客服会尽快处理，您可看公告和使用文档能否解决问题。",
+            "label": "默认回复内容",
+            "description": "未匹配关键词时的默认自动回复内容"
+        },
+        "keyword_rules": {
+            "type": "text",
+            "default": "退款|退钱=>[自动回复]此服务为自愿购买，无任何威胁购买情节，故无退款。\n订阅|链接=>[自动回复]订阅链接位于仪表盘/一键订阅/复制订阅链接。\n节点|超时|无法连接|用不了|连不上|炸=>[自动回复]请先查看公告或者使用文档能否解决。\n人工|真人|客服=>[自动回复]请稍等人工上线，上线后回复您，或者先看看公告或者使用文档能否解决您的问题。",
+            "label": "关键词规则",
+            "description": "格式：关键词=>回复内容，一行一条规则。多个关键词使用 | 分隔。"
+        },
+        "status": {
+            "type": "boolean",
+            "default": false,
+            "label": "是否开启任务",
+            "description": "是否开启自动工单回复任务"
+        }
+    }
+}
