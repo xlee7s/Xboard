@@ -1,100 +1,197 @@
-# Xboard
+# Xboard Deployment Guide for aaPanel Environment
 
-<div align="center">
+## Table of Contents
+1. [Requirements](#requirements)
+2. [Quick Deployment](#quick-deployment)
+3. [Detailed Configuration](#detailed-configuration)
+4. [Maintenance Guide](#maintenance-guide)
+5. [Troubleshooting](#troubleshooting)
 
-[![Telegram](https://img.shields.io/badge/Telegram-Channel-blue)](https://t.me/XboardOfficial)
-![PHP](https://img.shields.io/badge/PHP-8.2+-green.svg)
-![MySQL](https://img.shields.io/badge/MySQL-5.7+-blue.svg)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+## Requirements
 
-</div>
+### Hardware Requirements
+- CPU: 1 core or above
+- Memory: 2GB or above
+- Storage: 10GB+ available space
 
-## 📖 Introduction
+### Software Requirements
+- Operating System: Ubuntu 20.04+ / Debian 10+ (⚠️ CentOS 7 is not recommended)
+- Latest version of aaPanel
+- PHP 8.2
+- MySQL 5.7+
+- Redis
+- Nginx (any version)
 
-Xboard is a modern panel system built on Laravel 11, focusing on providing a clean and efficient user experience.
+## Quick Deployment
 
-## ✨ Features
-
-- 🚀 Built with Laravel 12 + Octane for significant performance gains
-- 🎨 Redesigned admin interface (React + Shadcn UI)
-- 📱 Modern user frontend (Vue3 + TypeScript)
-- 🐳 Ready-to-use Docker deployment solution
-- 🎯 Optimized system architecture for better maintainability
-
-## 🚀 Quick Start
-
+### 1. Install aaPanel
 ```bash
-git clone -b compose --depth 1 https://github.com/cedar2025/Xboard && \
-cd Xboard && \
-docker compose run -it --rm \
-    -e ENABLE_SQLITE=true \
-    -e ENABLE_REDIS=true \
-    -e ADMIN_ACCOUNT=admin@demo.com \
-    web php artisan xboard:install && \
-docker compose up -d
+URL=https://www.aapanel.com/script/install_6.0_en.sh && \
+if [ -f /usr/bin/curl ];then curl -ksSO "$URL" ;else wget --no-check-certificate -O install_6.0_en.sh "$URL";fi && \
+bash install_6.0_en.sh aapanel
 ```
 
-> After installation, visit: http://SERVER_IP:7001  
-> ⚠️ Make sure to save the admin credentials shown during installation
+### 2. Basic Environment Setup
 
-## 📖 Documentation
+#### 2.1 Install LNMP Environment
+In the aaPanel dashboard, install:
+- Nginx (any version)
+- MySQL 5.7
+- PHP 8.2
 
-### 🔄 Upgrade Notice
-> 🚨 **Important:** This version involves significant changes. Please strictly follow the upgrade documentation and backup your database before upgrading. Note that upgrading and migration are different processes, do not confuse them.
+#### 2.2 Install PHP Extensions
+Required PHP extensions:
+- redis
+- fileinfo
+- swoole
+- readline
+- event
+- mbstring
 
-### Development Guides
-- [Plugin Development Guide](./docs/en/development/plugin-development-guide.md) - Complete guide for developing XBoard plugins
+#### 2.3 Enable Required PHP Functions
+Functions that need to be enabled:
+- putenv
+- proc_open
+- pcntl_alarm
+- pcntl_signal
 
-### Deployment Guides
-- [Deploy with 1Panel](./docs/en/installation/1panel.md)
-- [Deploy with Docker Compose](./docs/en/installation/docker-compose.md)
-- [Deploy with aaPanel](./docs/en/installation/aapanel.md)
-- [Deploy with aaPanel + Docker](./docs/en/installation/aapanel-docker.md) (Recommended)
+### 3. Site Configuration
 
-### Migration Guides
-- [Migrate from v2board dev](./docs/en/migration/v2board-dev.md)
-- [Migrate from v2board 1.7.4](./docs/en/migration/v2board-1.7.4.md)
-- [Migrate from v2board 1.7.3](./docs/en/migration/v2board-1.7.3.md)
+#### 3.1 Create Website
+1. Navigate to: aaPanel > Website > Add site
+2. Fill in the information:
+   - Domain: Enter your site domain
+   - Database: Select MySQL
+   - PHP Version: Select 8.2
 
-## 🛠️ Tech Stack
-
-- Backend: Laravel 11 + Octane
-- Admin Panel: React + Shadcn UI + TailwindCSS
-- User Frontend: Vue3 + TypeScript + NaiveUI
-- Deployment: Docker + Docker Compose
-- Caching: Redis + Octane Cache
-
-## 📷 Preview
-![Admin Preview](./docs/images/admin.png)
-
-![User Preview](./docs/images/user.png)
-
-## ⚠️ Disclaimer
-
-This project is for learning and communication purposes only. Users are responsible for any consequences of using this project.
-
-## 🌟 Maintenance Notice
-
-This project is currently under light maintenance. We will:
-- Fix critical bugs and security issues
-- Review and merge important pull requests
-- Provide necessary updates for compatibility
-
-However, new feature development may be limited.
-
-## 🔔 Important Notes
-
-1. Restart required after modifying admin path:
+#### 3.2 Deploy Xboard
 ```bash
-docker compose restart
+# Enter site directory
+cd /www/wwwroot/your-domain
+
+# Clean directory
+chattr -i .user.ini
+rm -rf .htaccess 404.html 502.html index.html .user.ini
+
+# Clone repository
+git clone https://github.com/xlee7s/Xboard.git ./
+
+# Install dependencies
+sh init.sh
 ```
 
-2. For aaPanel installations, restart the Octane daemon process
+#### 3.3 Configure Site
+1. Set running directory to `/public`
+2. Add rewrite rules:
+```nginx
+location /downloads {
+}
 
-## 🤝 Contributing
+location / {  
+    try_files $uri $uri/ /index.php$is_args$query_string;  
+}
 
-Issues and Pull Requests are welcome to help improve the project.
+location ~ .*\.(js|css)?$
+{
+    expires      1h;
+    error_log off;
+    access_log /dev/null; 
+}
+```
 
-## 📈 Star History
+## Detailed Configuration
 
-[![Stargazers over time](https://starchart.cc/cedar2025/Xboard.svg)](https://starchart.cc/cedar2025/Xboard)
+### 1. Configure Daemon Process
+1. Install Supervisor
+2. Add queue daemon process:
+   - Name: `Xboard`
+   - Run User: `www`
+   - Running Directory: Site directory
+   - Start Command: `php artisan horizon`
+   - Process Count: 1
+
+### 2. Configure Scheduled Tasks
+- Type: Shell Script
+- Task Name: v2board
+- Run User: www
+- Frequency: 1 minute
+- Script Content: `php /www/wwwroot/site-directory/artisan schedule:run`
+
+### 3. Octane Configuration (Optional)
+#### 3.1 Add Octane Daemon Process
+- Name: Octane
+- Run User: www
+- Running Directory: Site directory
+- Start Command: `/www/server/php/82/bin/php artisan octane:start --port 7010`
+- Process Count: 1
+
+#### 3.2 Octane-specific Rewrite Rules
+```nginx
+location ~* \.(jpg|jpeg|png|gif|js|css|svg|woff2|woff|ttf|eot|wasm|json|ico)$ {
+}
+
+location ~ .* {
+    proxy_pass http://127.0.0.1:7010;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-PORT $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_set_header Scheme $scheme;
+    proxy_set_header Server-Protocol $server_protocol;
+    proxy_set_header Server-Name $server_name;
+    proxy_set_header Server-Addr $server_addr;
+    proxy_set_header Server-Port $server_port;
+}
+```
+
+## Maintenance Guide
+
+### Routine Maintenance
+- Regular log checking
+- Monitor system resource usage
+- Regular backup of database and configuration files
+
+## Troubleshooting
+
+### Common Issues
+1. **Empty Admin Dashboard**: If the admin panel is blank, run `git submodule update --init --recursive --force` to restore the theme files.
+2. Changes to admin path require service restart to take effect
+3. Any code changes after enabling Octane require restart to take effect
+3. When PHP extension installation fails, check if PHP version is correct
+4. For database connection failures, check database configuration and permissions
+
+## Enable WebSocket Real-time Sync (Optional)
+
+WebSocket enables real-time synchronization of configurations and user changes to nodes.
+
+### 1. Start WS Server
+
+Add a WebSocket daemon process in aaPanel Supervisor:
+- Name: `Xboard-WS`
+- Run User: `www`
+- Running Directory: Site directory
+- Start Command: `php artisan ws-server start`
+- Process Count: 1
+
+### 2. Configure Nginx
+
+Add the WebSocket location **before** the main `location ^~ /` block in your site's Nginx configuration:
+```nginx
+location /ws/ {
+    proxy_pass http://127.0.0.1:8076;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 60s;
+}
+```
+
+### 3. Restart Services
+
+Restart the Octane and WS Server processes in Supervisor.
+
+> The node will automatically detect WebSocket availability during handshake. No extra configuration is needed on the node side.
