@@ -146,6 +146,51 @@ location ~ .* {
 }
 ```
 
+#### 3.3 Octane start fail
+
+- 修改 `vendor/laravel/octane/src/Tables/SwooleTable.php`
+
+```php
+<?php
+
+namespace Laravel\Octane\Tables;
+
+use Swoole\Table;
+
+class SwooleTable extends Table
+{
+	use Concerns\EnsuresColumnSizes;
+	/**
+	 * The table columns.
+	 *
+	 * @var array
+	 */
+	protected $columns;
+
+	/**
+	 * Set the data type and size of the columns.
+	 */
+	public function column($name, $type, $size = null): bool
+	{
+		$this->columns[$name] = [$type, $size];
+
+		return parent::column($name, $type, $size);
+	}
+
+	/**
+	 * Update a row of the table.
+	 */
+	public function set($key, array $values): bool
+	{
+		collect($values)
+			->each($this->ensureColumnsSize());
+
+		return parent::set($key, $values);
+	}
+}
+```
+
+
 ## Maintenance Guide
 
 ### Routine Maintenance
