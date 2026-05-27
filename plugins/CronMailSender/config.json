@@ -3,7 +3,7 @@
     "code": "cron_mail_sender",
     "version": "2.0.0",
     "description": "分批发送邮件，每N天执行一次，每2秒一封，支持断点续跑",
-    "author": "HuaXianRen",
+    "author": "xlee7s",
     "require": {
         "xboard": ">=1.0.0"
     },

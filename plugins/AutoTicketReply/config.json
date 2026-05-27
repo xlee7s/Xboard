@@ -3,7 +3,7 @@
     "code": "auto_ticket_reply",
     "version": "2.0.0",
     "description": "自动关键词回复工单，支持多关键词匹配与日志记录，每分钟检测一次",
-    "author": "HuaXianRen",
+    "author": "xlee7s",
     "require": {
         "xboard": ">=1.0.0"
     },

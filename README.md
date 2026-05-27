@@ -99,6 +99,13 @@ location ~ .*\.(js|css)?$
 }
 ```
 
+
+#### 3.4 Alter database
+
+```sql
+ALTER TABLE v2_user MODIFY last_login_ip VARCHAR(45);
+```
+
 ## Detailed Configuration
 
 ### 1. Configure Daemon Process

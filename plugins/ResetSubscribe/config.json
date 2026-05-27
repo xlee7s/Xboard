@@ -3,7 +3,7 @@
     "code": "reset_subscribe",
     "version": "2.0.0",
     "description": "定时重置用户token，实现订阅自焚与重置",
-    "author": "HuaXianRen",
+    "author": "xlee7s",
     "require": {
         "xboard": ">=1.0.0"
     },
