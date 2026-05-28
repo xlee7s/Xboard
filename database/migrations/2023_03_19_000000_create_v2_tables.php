@@ -142,7 +142,7 @@ return new class extends Migration {
                 $table->boolean('is_admin')->default(false);
                 $table->integer('last_login_at')->nullable();
                 $table->boolean('is_staff')->default(false);
-                $table->integer('last_login_ip')->nullable();
+                $table->string('last_login_ip', 45)->nullable();
                 $table->string('uuid', 36);
                 $table->integer('group_id')->nullable();
                 $table->integer('plan_id')->nullable();
