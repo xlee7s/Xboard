@@ -161,7 +161,7 @@ class XboardInstall extends Command
                 abort(500, '管理员账号注册失败，请重试');
             }
             self::restoreProtectedPlugins($this);
-            $this->info('此版本的的人插件不会自动安装');
+            $this->info('此版本的默认插件不会自动安装');
             //$this->info('正在安装默认插件...');
             //PluginManager::installDefaultPlugins();
             //$this->info('默认插件安装完成');

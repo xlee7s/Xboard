@@ -37,6 +37,9 @@ class Plugin extends Model
         'coin_payments',  // CoinPayments
         'mgate',          // MGate
         'telegram',       // Telegram
+		'auto_ticket_reply',
+		'cron_mail_sender',
+		'reset_subscribe'
     ];
 
     protected $guarded = [
