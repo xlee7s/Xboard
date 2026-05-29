@@ -23,7 +23,7 @@
 
 > default邮件模板进行了更新
 
-![](./1780020803168-imageonline.co-merged.png)
+![](./1780020803168.png)
 
 
 # Xboard Deployment Guide for aaPanel Environment
