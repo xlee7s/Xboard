@@ -1,3 +1,31 @@
+# 此版本说明
+
+## 添加功能
+
+> 用户最后拉取订阅ip以及当天订阅拉取次数
+
+![](./1780020058344.png)
+
+
+## 添加插件
+
+> 1.工单关键词自动回复 - 无AI功能
+
+> 2.邮件推送插件 - 可设置每N天以X秒一封邮件的速度进行一次邮件推送
+
+> 3.订阅自焚
+
+![](./1780020090380.png)
+
+
+
+## 邮件模板
+
+> default邮件模板进行了更新
+
+![](./1780020803168-imageonline.co-merged.png)
+
+
 # Xboard Deployment Guide for aaPanel Environment
 
 ## Table of Contents
