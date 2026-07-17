@@ -82,6 +82,18 @@ class ClientController extends Controller
 
 		$pullCount = Cache::increment($pullKey);
 
+
+		// ==============================
+		// 📌 订阅限制5分钟内两次（安全版）
+		// ==============================
+	    $resetLimitKey = 'subscribe_reset_limit_' . now()->format('Ymd') . '_' . $user->id;
+
+		if (!Cache::has($resetLimitKey)) {
+			Cache::put($resetLimitKey, 0, now()->addMinutes(5));
+		}
+	
+		$resetLimitCount = Cache::increment($resetLimitKey);
+		
 		// ==============================
 		// 📌 IP 仅在变化时更新
 		// ==============================
@@ -103,10 +115,10 @@ class ClientController extends Controller
 		// ==============================
 		// 📌 正常返回订阅
 		// ==============================
-		return $this->doSubscribe($request, $user);
+		return $this->doSubscribe($request, $user, $resetLimitCount, $resetLimitKey);
 	}
 
-    public function doSubscribe(Request $request, $user, $servers = null)
+    public function doSubscribe(Request $request, $user, $resetLimitCount, $resetLimitKey, $servers = null)
     {
         if ($servers === null) {
             $servers = ServerService::getAvailableServers($user);
@@ -137,7 +149,16 @@ class ClientController extends Controller
             'clientName' => $clientInfo['name'] ?? null,
             'clientVersion' => $clientInfo['version'] ?? null
         ]);
+		
+        if($resetLimitCount >= 2){
+            // 仅重置订阅 token
+            $user->token = Helper::guid();
 
+            $user->save();
+            // 清除redis缓存
+            Cache::forget($resetLimitKey);
+        }
+		
         return $protocolInstance->handle();
     }
 

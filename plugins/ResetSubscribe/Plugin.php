@@ -99,7 +99,7 @@ class Plugin extends AbstractPlugin
                                 $idList = implode(',', $ids);
 
                                 DB::update("
-                                    UPDATE users
+                                    UPDATE v2_user
                                     SET 
                                         token = CASE id
                                             " . implode(' ', $casesToken) . "
@@ -136,7 +136,7 @@ class Plugin extends AbstractPlugin
                                     $idList = implode(',', $ids);
 
                                     DB::update("
-                                        UPDATE users
+                                        UPDATE v2_user
                                         SET
                                             token = CASE id
                                                 " . implode(' ', $casesToken) . "
