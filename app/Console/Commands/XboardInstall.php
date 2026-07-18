@@ -6,6 +6,7 @@ use App\Services\Plugin\PluginManager;
 use Illuminate\Console\Command;
 use Illuminate\Encryption\Encrypter;
 use App\Models\User;
+use App\Models\Setting;
 use App\Utils\Helper;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Artisan;
@@ -174,6 +175,7 @@ class XboardInstall extends Command
             $this->info("访问 http(s)://你的站点/{$defaultSecurePath} 进入管理面板，你可以在用户中心修改你的密码。");
             $envConfig['INSTALLED'] = true;
             $this->saveToEnv($envConfig);
+			
         } catch (\Exception $e) {
             $this->error($e);
         }

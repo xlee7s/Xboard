@@ -1,6 +1,6 @@
 {
-    "name": "重置订阅-订阅自焚",
-    "code": "reset_subscribe",
+    "name": "定时重置订阅-订阅自焚",
+    "code": "loop_reset_subscribe",
     "version": "2.0.0",
     "description": "定时重置用户token，实现订阅自焚与重置",
     "author": "xlee7s",
