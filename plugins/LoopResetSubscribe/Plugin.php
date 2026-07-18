@@ -1,6 +1,6 @@
 <?php
 
-namespace Plugin\ResetSubscribe;
+namespace Plugin\LoopResetSubscribe;
 
 use App\Models\User;
 use App\Utils\Helper;
