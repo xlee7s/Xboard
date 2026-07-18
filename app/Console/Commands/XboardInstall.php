@@ -6,7 +6,6 @@ use App\Services\Plugin\PluginManager;
 use Illuminate\Console\Command;
 use Illuminate\Encryption\Encrypter;
 use App\Models\User;
-use App\Models\Setting;
 use App\Utils\Helper;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Artisan;
