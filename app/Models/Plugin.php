@@ -39,7 +39,7 @@ class Plugin extends Model
         'telegram',       // Telegram
 		'auto_ticket_reply',
 		'cron_mail_sender',
-		'reset_subscribe'
+		'loop_reset_subscribe'
     ];
 
     protected $guarded = [
