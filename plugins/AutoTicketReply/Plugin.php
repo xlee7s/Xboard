@@ -4,8 +4,11 @@ namespace Plugin\AutoTicketReply;
 
 use App\Models\Ticket;
 use App\Models\TicketMessage;
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
+use App\Services\MailService;
 use App\Services\Plugin\AbstractPlugin;
 
 class Plugin extends AbstractPlugin
@@ -76,7 +79,8 @@ class Plugin extends AbstractPlugin
                         'reply' => trim($reply)
                     ];
                 }
-
+				$app_name = Setting::where('name', 'app_name')->value('value');
+				$app_url = Setting::where('name', 'app_url')->value('value');
                 // =========================
                 // 查找待回复工单
                 // v2_ticket: status=0 未关闭
@@ -143,6 +147,33 @@ class Plugin extends AbstractPlugin
                             'created_at' => time(),
                             'updated_at' => time(),
                         ]);
+						
+						
+						$user = User::query()
+							->where('id', $ticket->user_id)
+							->first();				
+						// 发送邮件
+						try {
+    
+                            MailService::sendEmail([
+                                'email' => $user->email,
+                                'subject' => '工单回复',
+                                'template_name' => 'cronnotify',
+                                'template_value' => [
+                                    'content' => $replyMessage,
+                                    'subject' => '工单回复',
+                                    'name' => $app_name,
+									'url' => $app_url
+                                ]
+                            ]);
+    
+                            if ($enableLog) {
+                                info("Ticket sent user_id={$user->id}");
+                            }
+    
+                        } catch (\Throwable $e) {
+                            info("Ticket failed user_id={$user->id}");
+                        }
 
                         // =========================
                         // 更新工单状态
