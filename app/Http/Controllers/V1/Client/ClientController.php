@@ -279,9 +279,9 @@ class ClientController extends Controller
             return;
 		
 		// 直接在数据库层提取原始字段值，不走 Eloquent 模型属性转换
-		$appUrl = Setting::where('name', 'app_url')->value('value');
+        $appUrl = Setting::where('name', 'app_url')->value('value');
 		
-		$email = $user['email']
+		$email = $user['email'];
         $useTraffic = $user['u'] + $user['d'];
         $totalTraffic = $user['transfer_enable'];
         $remainingTraffic = Helper::trafficConvert($totalTraffic - $useTraffic);
