@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server;
+use App\Models\Setting;
 use App\Protocols\General;
 use App\Services\Plugin\HookManager;
 use App\Services\ServerService;
@@ -276,12 +277,36 @@ class ClientController extends Controller
         }
         if (!(int) admin_setting('show_info_to_server_enable', 0))
             return;
+		
+		// 直接在数据库层提取原始字段值，不走 Eloquent 模型属性转换
+		$appUrl = Setting::where('name', 'app_url')->value('value');
+		
+		$email = $user['email']
         $useTraffic = $user['u'] + $user['d'];
         $totalTraffic = $user['transfer_enable'];
         $remainingTraffic = Helper::trafficConvert($totalTraffic - $useTraffic);
         $expiredDate = $user['expired_at'] ? date('Y-m-d', $user['expired_at']) : __('长期有效');
         $userService = new UserService();
         $resetDay = $userService->getResetDay($user);
+		 
+        array_unshift($servers, array_merge($servers[0], [
+            'name' => "使用方法看官网使用文档",
+        ]));		
+        array_unshift($servers, array_merge($servers[0], [
+            'name' => "软件下载看官网使用文档",
+        ]));
+		array_unshift($servers, array_merge($servers[0], [
+            'name' => "有问题重新导入或看官网",
+        ]));
+        array_unshift($servers, array_merge($servers[0], [
+            'name' => "官网 {$appUrl}",
+        ]));
+        array_unshift($servers, array_merge($servers[0], [
+            'name' => "{$email}",
+        ]));
+		
+		
+		
         array_unshift($servers, array_merge($servers[0], [
             'name' => "套餐到期：{$expiredDate}",
         ]));
