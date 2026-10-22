@@ -168,21 +168,15 @@ class UserController extends Controller
 		$users = $userModel->orderBy('id', 'desc')
 			->paginate($pageSize, ['*'], 'page', $current);
 		
-		$users->getCollection()->transform(function ($user): array {
-			
-			// ==============================
-			// 📌 获取当天该用户拉取订阅次数
-			// ==============================
+		$users->getCollection()->transform(function (User $user): array {
 			$pullKey = 'subscribe_pull_count_' . now()->format('Ymd') . '_' . $user->id;
-			$pullCount = Cache::get($pullKey, 0);
+			$pullCount = (int) Cache::get($pullKey, 0);
+			$data = self::transformUserData($user);
 
-			if ($user->last_login_ip) {
-				$user->last_login_ip = "{$user->last_login_ip} 🔃今日{$pullCount}次";
-			}else{
-				$user->last_login_ip = "🔃今日{$pullCount}次";
-			}
-		
-			return self::transformUserData($user);
+			// 仅修改接口响应，避免污染分页集合内的 Eloquent 模型属性。
+			$data['last_login_ip'] = trim(($data['last_login_ip'] ?? '') . " 🔃今日{$pullCount}次");
+
+			return $data;
 		});
 
 		return $this->paginate($users);

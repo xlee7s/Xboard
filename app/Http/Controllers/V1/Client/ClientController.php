@@ -73,29 +73,6 @@ class ClientController extends Controller
 		$ip = $ip ?: $request->ip();
 		
 		// ==============================
-		// 📌 当天订阅拉取次数统计（安全版）
-		// ==============================
-		$pullKey = 'subscribe_pull_count_' . now()->format('Ymd') . '_' . $user->id;
-
-		if (!Cache::has($pullKey)) {
-			Cache::put($pullKey, 0, now()->endOfDay());
-		}
-
-		$pullCount = Cache::increment($pullKey);
-
-
-		// ==============================
-		// 📌 订阅限制5分钟内两次（安全版）
-		// ==============================
-	    $resetLimitKey = 'subscribe_reset_limit_' . now()->format('Ymd') . '_' . $user->id;
-
-		if (!Cache::has($resetLimitKey)) {
-			Cache::put($resetLimitKey, 0, now()->addMinutes(5));
-		}
-	
-		$resetLimitCount = Cache::increment($resetLimitKey);
-		
-		// ==============================
 		// 📌 IP 仅在变化时更新
 		// ==============================
 		if ($user->last_login_ip !== $ip) {
@@ -113,13 +90,19 @@ class ClientController extends Controller
 			return response('', 403, ['Content-Type' => 'text/plain']);
 		}
 
+		// 当天订阅拉取次数：仅记录可用用户的有效订阅请求。
+		// add 与 increment 可避免「先 has 再 put」在并发请求下覆盖计数的问题。
+		$pullKey = 'subscribe_pull_count_' . now()->format('Ymd') . '_' . $user->id;
+		Cache::add($pullKey, 0, now()->endOfDay());
+		Cache::increment($pullKey);
+
 		// ==============================
 		// 📌 正常返回订阅
 		// ==============================
-		return $this->doSubscribe($request, $user, $resetLimitCount, $resetLimitKey);
+		return $this->doSubscribe($request, $user);
 	}
 
-    public function doSubscribe(Request $request, $user, $resetLimitCount, $resetLimitKey, $servers = null)
+    public function doSubscribe(Request $request, $user, $servers = null)
     {
         if ($servers === null) {
             $servers = ServerService::getAvailableServers($user);
@@ -150,15 +133,6 @@ class ClientController extends Controller
             'clientName' => $clientInfo['name'] ?? null,
             'clientVersion' => $clientInfo['version'] ?? null
         ]);
-		
-        if($resetLimitCount >= 2){
-            // 仅重置订阅 token
-            $user->token = Helper::guid();
-
-            $user->save();
-            // 清除redis缓存
-            Cache::forget($resetLimitKey);
-        }
 		
         return $protocolInstance->handle();
     }

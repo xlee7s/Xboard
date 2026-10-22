@@ -1,0 +1,18 @@
+{
+  "name": "分批定时重置订阅链接",
+  "code": "scheduled_token_reset",
+  "version": "1.1.0",
+  "description": "按设定分钟间隔分批重置用户订阅 token，支持账户排除与有效用户筛选。",
+  "author": "xlee7s",
+  "require": { "xboard": ">=1.0.0" },
+  "config": {
+    "status": { "type": "boolean", "default": false, "label": "启用插件", "description": "开启后才会按计划重置订阅 token。" },
+    "interval_minutes": { "type": "number", "default": 60, "label": "完整重置间隔（分钟）", "description": "一轮全部目标用户完成后，等待多少分钟再开始下一轮。最小 1 分钟。" },
+    "batch_size": { "type": "number", "default": 100, "label": "每分钟重置数量", "description": "每次调度最多重置的用户数，范围 1 至 1000。" },
+    "only_active_users": { "type": "boolean", "default": false, "label": "仅重置有效用户", "description": "开启后仅处理未封禁、有可用流量且未过期或长期有效的用户。" },
+    "exclude_admin_users": { "type": "boolean", "default": true, "label": "排除管理员账户", "description": "默认不重置管理员账户的 token。" },
+    "excluded_user_ids": { "type": "text", "default": "", "label": "排除用户 ID", "description": "这些账户永不重置。支持换行、逗号或分号分隔。" },
+    "excluded_emails": { "type": "text", "default": "", "label": "排除邮箱", "description": "这些邮箱账户永不重置。支持换行、逗号或分号分隔。" },
+    "enable_log": { "type": "boolean", "default": true, "label": "记录日志", "description": "记录每批处理和每轮完成；错误始终记录。" }
+  }
+}

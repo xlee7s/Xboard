@@ -1,0 +1,48 @@
+{
+  "name": "订阅频率自动重置",
+  "code": "subscribe_rate_reset",
+  "version": "1.0.0",
+  "description": "用户在设定时间窗口内频繁拉取订阅时自动重置订阅链接，支持账户排除。",
+  "author": "xlee7s",
+  "require": {
+    "xboard": ">=1.0.0"
+  },
+  "config": {
+    "status": {
+      "type": "boolean",
+      "default": false,
+      "label": "启用插件",
+      "description": "开启后才会统计订阅请求并按规则重置 token。"
+    },
+    "window_minutes": {
+      "type": "number",
+      "default": 5,
+      "label": "统计时间（分钟）",
+      "description": "在此时间窗口内累计订阅拉取次数；最小为 1 分钟。"
+    },
+    "request_limit": {
+      "type": "number",
+      "default": 2,
+      "label": "触发次数",
+      "description": "窗口内第几次有效订阅请求时重置 token；最小为 1。"
+    },
+    "excluded_user_ids": {
+      "type": "text",
+      "default": "",
+      "label": "排除用户 ID",
+      "description": "不参与重置的用户 ID。可用换行、逗号或分号分隔，例如：1, 25, 86。"
+    },
+    "excluded_emails": {
+      "type": "text",
+      "default": "",
+      "label": "排除邮箱",
+      "description": "不参与重置的账户邮箱。可用换行、逗号或分号分隔。"
+    },
+    "enable_log": {
+      "type": "boolean",
+      "default": true,
+      "label": "记录重置日志",
+      "description": "开启后，每次自动重置 token 都会记录一条应用日志。"
+    }
+  }
+}

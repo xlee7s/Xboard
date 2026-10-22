@@ -38,8 +38,10 @@ class Plugin extends Model
         'mgate',          // MGate
         'telegram',       // Telegram
 		'auto_ticket_reply',
-		'cron_mail_sender',
-		'loop_reset_subscribe'
+		'reward_claim',
+		'scheduled_mail_campaign',
+		'scheduled_token_reset',
+		'subscribe_rate_reset'
     ];
 
     protected $guarded = [

@@ -1,42 +1,21 @@
 {
-    "name": "自动工单回复",
-    "code": "auto_ticket_reply",
-    "version": "2.0.0",
-    "description": "自动关键词回复工单，支持多关键词匹配与日志记录，每分钟检测一次",
-    "author": "xlee7s",
-    "require": {
-        "xboard": ">=1.0.0"
-    },
-    "config": {
-        "admin_user_id": {
-            "type": "number",
-            "default": 1,
-            "label": "管理员用户ID",
-            "description": "系统自动回复使用的管理员ID"
-        },
-        "enable_log": {
-            "type": "boolean",
-            "default": true,
-            "label": "开启日志",
-            "description": "是否记录自动回复日志"
-        },
-        "default_reply": {
-            "type": "string",
-            "default": "[自动回复]您好，工单已收到，客服会尽快处理，您可看公告和使用文档能否解决问题。",
-            "label": "默认回复内容",
-            "description": "未匹配关键词时的默认自动回复内容"
-        },
-        "keyword_rules": {
-            "type": "text",
-            "default": "退款|退钱=>[自动回复]此服务为自愿购买，无任何威胁购买情节，故无退款。\n订阅|链接=>[自动回复]订阅链接位于仪表盘/一键订阅/复制订阅链接。\n节点|超时|无法连接|用不了|连不上|炸=>[自动回复]请先查看公告或者使用文档能否解决。\n人工|真人|客服=>[自动回复]请稍等人工上线，上线后回复您，或者先看看公告或者使用文档能否解决您的问题。",
-            "label": "关键词规则",
-            "description": "格式：关键词=>回复内容，一行一条规则。多个关键词使用 | 分隔。"
-        },
-        "status": {
-            "type": "boolean",
-            "default": false,
-            "label": "是否开启任务",
-            "description": "是否开启自动工单回复任务"
-        }
-    }
+  "name": "自动工单回复",
+  "code": "auto_ticket_reply",
+  "version": "2.1.0",
+  "description": "按关键词自动回复工单，支持账户排除、关键词模式、邮件队列与日志。",
+  "author": "xlee7s",
+  "require": { "xboard": ">=1.0.0" },
+  "config": {
+    "status": { "type": "boolean", "default": false, "label": "启用插件", "description": "开启后每分钟检查待处理工单。" },
+    "admin_user_id": { "type": "number", "default": 1, "label": "管理员用户 ID", "description": "必须是存在且具有管理员权限的账户；否则本轮不会处理工单。" },
+    "max_tickets_per_run": { "type": "number", "default": 50, "label": "每轮最多处理工单数", "description": "范围为 1 至 200，用于控制单次任务负载。" },
+    "only_keyword_match": { "type": "boolean", "default": false, "label": "仅关键词命中时回复", "description": "开启后，未命中关键词的工单保留给人工处理，不发送默认回复。" },
+    "default_reply": { "type": "text", "default": "[自动回复]您好，工单已收到，客服会尽快处理，您可查看公告和使用文档是否能解决问题。", "label": "默认回复内容", "description": "关闭“仅关键词命中时回复”后，未匹配关键词时发送此内容。留空则不自动回复。" },
+    "keyword_rules": { "type": "text", "default": "退款|退钱=>[自动回复]此服务为自愿购买，无任何威胁购买情节，故无退款。\n订阅|链接=>[自动回复]订阅链接位于仪表盘/一键订阅/复制订阅链接。\n节点|超时|无法连接|用不了|连不上|炸=>[自动回复]请先查看公告或者使用文档能否解决。\n人工|真人|客服=>[自动回复]请稍等人工上线，上线后会回复您；您也可以先查看公告或使用文档。", "label": "关键词规则", "description": "一行一条：关键词1|关键词2=>回复内容。空关键词或空回复规则会被忽略。" },
+    "excluded_user_ids": { "type": "text", "default": "", "label": "排除用户 ID", "description": "这些账户的工单不会自动回复。支持换行、逗号或分号分隔。" },
+    "excluded_emails": { "type": "text", "default": "", "label": "排除邮箱", "description": "这些邮箱账户的工单不会自动回复。支持换行、逗号或分号分隔。" },
+    "email_template": { "type": "string", "default": "cronnotify", "label": "邮件模板名", "description": "使用当前邮件主题目录下的模板名称，例如 cronnotify。" },
+    "email_subject": { "type": "string", "default": "工单回复", "label": "邮件标题", "description": "自动回复邮件的标题。" },
+    "enable_log": { "type": "boolean", "default": true, "label": "记录日志", "description": "记录成功处理、失败和 Hook 异常；错误与警告始终记录。" }
+  }
 }
