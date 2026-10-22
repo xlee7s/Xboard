@@ -1,0 +1,42 @@
+{
+  "name": "每日奖励领取",
+  "code": "reward_claim",
+  "version": "1.1.3",
+  "description": "登录用户可通过悬浮按钮随机减免已用流量。",
+  "author": "xlee7s",
+  "require": {
+    "xboard": ">=1.0.0"
+  },
+  "config": {
+    "min_reward_mb": {
+      "type": "number",
+      "default": 100,
+      "label": "最小奖励（MB）",
+      "description": "每次随机减免已用流量的最小值。"
+    },
+    "max_reward_mb": {
+      "type": "number",
+      "default": 2048,
+      "label": "最大奖励（MB）",
+      "description": "每次随机减免已用流量的最大值。范围内所有数值等概率随机。"
+    },
+    "claim_interval_hours": {
+      "type": "number",
+      "default": 24,
+      "label": "领取间隔（小时）",
+      "description": "同一用户两次领取之间的最短间隔，最小为 1 小时。"
+    },
+    "reward_title": {
+      "type": "string",
+      "default": "每日流量奖励",
+      "label": "奖励标题",
+      "description": "显示在用户领取弹窗中的标题。"
+    },
+    "reward_description": {
+      "type": "text",
+      "default": "领取后将在设定范围内随机减免您的已用流量。",
+      "label": "奖励说明",
+      "description": "显示在用户领取弹窗中的说明，应描述减免已用流量的规则。"
+    }
+  }
+}
