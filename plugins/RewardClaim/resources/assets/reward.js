@@ -45,7 +45,9 @@
     var isMobile = window.matchMedia('(max-width: 767px)').matches;
     var triggers = Array.prototype.slice.call(document.querySelectorAll('[data-xboard-reward-float]'));
     var totalHeight = triggers.reduce(function (total, trigger) { return total + trigger.offsetHeight; }, 0) + Math.max(0, triggers.length - 1) * 12;
-    var top = Math.max(16, Math.round((window.innerHeight - totalHeight) / 2));
+    var offset = isMobile ? 120 : 180;
+    var bottomReserve = isMobile ? 120 : 170;
+    var top = Math.max(16, Math.min(window.innerHeight - totalHeight - bottomReserve, Math.round((window.innerHeight - totalHeight) / 2) + offset));
     triggers.reverse().forEach(function (trigger) {
       trigger.style.left = 'auto';
       trigger.style.right = isMobile ? '18px' : '24px';

@@ -1,7 +1,7 @@
 {
   "name": "邀请流量返利",
   "code": "invite_traffic_reward",
-  "version": "1.0.26",
+  "version": "1.0.30",
   "description": "邀请有效新用户后领取流量减免、套餐有效期、不限时套餐或余额奖励。",
   "author": "xlee7s",
   "require": { "xboard": ">=1.0.0" },
