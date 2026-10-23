@@ -17,7 +17,7 @@ class Plugin extends AbstractPlugin
         $themeConfig = is_array($themeConfig) ? $themeConfig : [];
         $html = (string) ($themeConfig['custom_html'] ?? '');
 
-        if (str_contains($html, 'id="' . self::SCRIPT_ID . '"') && str_contains($html, 'reward.js?v=1.1.9')) {
+        if (str_contains($html, 'id="' . self::SCRIPT_ID . '"') && str_contains($html, 'reward.js?v=1.1.12')) {
             return;
         }
 
@@ -27,7 +27,7 @@ class Plugin extends AbstractPlugin
             $html
         );
         $themeConfig['custom_html'] = rtrim($html) . PHP_EOL
-            . '<script id="' . self::SCRIPT_ID . '" src="/plugins/reward_claim/reward.js?v=1.1.9" defer></script>';
+            . '<script id="' . self::SCRIPT_ID . '" src="/plugins/reward_claim/reward.js?v=1.1.12" defer></script>';
         admin_setting([$settingKey => $themeConfig]);
     }
 
