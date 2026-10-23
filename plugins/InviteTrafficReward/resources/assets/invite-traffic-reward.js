@@ -121,8 +121,8 @@
     var trigger = document.createElement('button');
     trigger.id = TRIGGER_ID;
     trigger.type = 'button';
-    trigger.innerHTML = '<span>🎁</span> 邀请返利';
-    trigger.setAttribute('aria-label', '领取邀请返利');
+    trigger.innerHTML = '<span>🎁</span> 邀请奖励';
+    trigger.setAttribute('aria-label', '领取邀请奖励');
     trigger.onclick = openReward;
     document.body.appendChild(trigger);
   }
