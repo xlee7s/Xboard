@@ -110,21 +110,31 @@
     hint.hidden = !showHint;
     hint.textContent = showHint ? data.message : '';
     if (data.account_type === 'none') {
-      reward.innerHTML = '<span>领取奖励</span><strong>指定不限时套餐</strong><em>并发放 ' + data.reward_traffic + ' 总流量</em>';
+      reward.innerHTML = '<span>领取奖励</span><strong>' + (data.plan_reward_available ? '指定不限时套餐' : '余额奖励') + '</strong><em>' + (data.plan_reward_available ? '或领取 ' : '') + (data.has_balance_reward ? data.reward_balance + '余额' : '并发放 ' + data.reward_traffic + ' 总流量') + '</em>';
       rule.textContent = data.no_plan_reason || '领取后会发放后台设置的不限时套餐和奖励总流量，并消耗 1 次有效邀请奖励。';
-      actions.innerHTML = '<button type="button" class="itr-primary">领取不限时套餐</button>';
-      actions.querySelector('button').onclick = function () { claim(modal, data, 'plan'); };
+      actions.innerHTML = (data.plan_reward_available ? '<button type="button" class="itr-primary itr-plan">领取不限时套餐</button>' : '')
+        + (data.has_balance_reward ? '<button type="button" class="itr-secondary itr-balance">领取 ' + data.reward_balance + '余额</button>' : '');
+      var planButton = actions.querySelector('.itr-plan');
+      var balanceButton = actions.querySelector('.itr-balance');
+      if (planButton) planButton.onclick = function () { claim(modal, data, 'plan'); };
+      if (balanceButton) balanceButton.onclick = function () { claim(modal, data, 'balance'); };
     } else if (data.account_type === 'onetime') {
-      reward.innerHTML = '<span>每位有效邀请可增加</span><strong>' + data.reward_traffic + ' 总流量</strong>';
-      rule.textContent = '领取后直接增加套餐总流量，不减免已用流量。';
-      actions.innerHTML = '<button type="button" class="itr-primary">领取总流量</button>';
-      actions.querySelector('button').onclick = function () { claim(modal, data, 'quota'); };
+      reward.innerHTML = '<span>每位有效邀请奖励</span><strong>' + data.reward_traffic + ' 总流量</strong><em>' + (data.has_balance_reward ? '或领取 ' + data.reward_balance + '余额' : '') + '</em>';
+      rule.textContent = '请选择增加套餐总流量或领取余额。本次选择不会影响之后其他邀请奖励。';
+      actions.innerHTML = '<button type="button" class="itr-primary itr-quota">领取总流量</button>'
+        + (data.has_balance_reward ? '<button type="button" class="itr-secondary itr-balance">领取余额</button>' : '');
+      actions.querySelector('.itr-quota').onclick = function () { claim(modal, data, 'quota'); };
+      var onetimeBalanceButton = actions.querySelector('.itr-balance');
+      if (onetimeBalanceButton) onetimeBalanceButton.onclick = function () { claim(modal, data, 'balance'); };
     } else {
-      reward.innerHTML = '<span>每位有效邀请奖励</span><strong>' + data.reward_traffic + '</strong><em>或延长 ' + data.extension_duration + '</em>';
+      reward.innerHTML = '<span>每位有效邀请奖励</span><strong>' + data.reward_traffic + '</strong><em>或延长 ' + data.extension_duration + (data.has_balance_reward ? ' / 领取 ' + data.reward_balance + '余额' : '') + '</em>';
       rule.textContent = '请选择一种方式领取。本次选择不会影响之后其他邀请奖励的领取方式。';
-      actions.innerHTML = '<button type="button" class="itr-secondary">减免已用流量</button><button type="button" class="itr-primary">延长套餐有效期</button>';
+      actions.innerHTML = '<button type="button" class="itr-secondary">减免已用流量</button><button type="button" class="itr-primary">延长套餐有效期</button>'
+        + (data.has_balance_reward ? '<button type="button" class="itr-secondary itr-balance">领取余额</button>' : '');
       actions.querySelector('.itr-secondary').onclick = function () { claim(modal, data, 'traffic'); };
       actions.querySelector('.itr-primary').onclick = function () { claim(modal, data, 'extension'); };
+      var periodicBalanceButton = actions.querySelector('.itr-balance');
+      if (periodicBalanceButton) periodicBalanceButton.onclick = function () { claim(modal, data, 'balance'); };
       if (!data.can_reduce_traffic) {
         actions.querySelector('.itr-secondary').disabled = true;
       }

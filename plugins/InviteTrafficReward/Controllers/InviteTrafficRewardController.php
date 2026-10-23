@@ -45,13 +45,14 @@ class InviteTrafficRewardController extends Controller
                 return $this->fail([422, '暂时没有可领取的有效邀请。']);
             }
 
-            $rewardType = $this->rewardTypeFor($user, $mode);
+            $rewardType = $this->rewardTypeFor($user, $mode, $config);
             if ($rewardType === null) {
                 return $this->fail([422, '当前套餐不支持该领取方式。']);
             }
 
             $rewardBytes = 0;
             $extensionSeconds = 0;
+            $rewardBalance = 0;
             $message = '';
             if ($rewardType === 'plan') {
                 $plan = $this->validateOneTimePlan($config['no_plan_reward_plan_id']);
@@ -74,6 +75,11 @@ class InviteTrafficRewardController extends Controller
                 $this->reduceUsedTraffic($user, $rewardBytes);
                 $user->save();
                 $message = sprintf('已减免 %s 已用流量。', $this->formatBytes($rewardBytes));
+            } elseif ($rewardType === 'balance') {
+                $rewardBalance = $config['reward_balance'];
+                $this->increaseBalance($user, $rewardBalance);
+                $user->save();
+                $message = sprintf('已领取 %s 余额。', $this->formatBalance($rewardBalance));
             } else {
                 $extensionSeconds = $config['extension_seconds'];
                 $base = max((int) ($user->expired_at ?? 0), time());
@@ -88,6 +94,7 @@ class InviteTrafficRewardController extends Controller
                 'reward_type' => $rewardType,
                 'reward_bytes' => $rewardBytes,
                 'extension_seconds' => $extensionSeconds,
+                'reward_balance' => $rewardBalance,
                 'claimed_at' => time(),
                 'created_at' => time(),
                 'updated_at' => time(),
@@ -105,7 +112,8 @@ class InviteTrafficRewardController extends Controller
         $values = json_decode((string) Plugin::query()->where('code', self::PLUGIN_CODE)->value('config'), true) ?: [];
         $maxMb = intdiv(PHP_INT_MAX, self::BYTES_PER_MB);
         $rewardMb = min(max((int) round((float) ($values['reward_traffic_mb'] ?? 1024)), 1), $maxMb);
-        $perDayMb = min(max((int) round((float) ($values['traffic_per_day_mb'] ?? 1024)), 1), $maxMb);
+        $extensionHours = min(max((float) ($values['extension_hours'] ?? 24), 1 / 60), self::MAX_EXTENSION_SECONDS / 3600);
+        $rewardBalance = min(max((int) round((float) ($values['reward_balance_yuan'] ?? 1) * 100), 0), PHP_INT_MAX);
         $startDate = trim((string) ($values['effective_invite_start_date'] ?? ''));
         try {
             $startAt = Carbon::createFromFormat('Y-m-d', $startDate, config('app.timezone'))->startOfDay()->timestamp;
@@ -114,16 +122,14 @@ class InviteTrafficRewardController extends Controller
         }
 
         $rewardBytes = $rewardMb * self::BYTES_PER_MB;
-        $extensionSeconds = min(
-            self::MAX_EXTENSION_SECONDS,
-            max(1, (int) round($rewardBytes / ($perDayMb * self::BYTES_PER_MB) * 86400))
-        );
+        $extensionSeconds = min(self::MAX_EXTENSION_SECONDS, max(60, (int) round($extensionHours * 3600)));
 
         return [
             'start_at' => $startAt,
             'reward_bytes' => $rewardBytes,
             'no_plan_reward_plan_id' => max(0, (int) ($values['no_plan_reward_plan_id'] ?? 0)),
             'extension_seconds' => $extensionSeconds,
+            'reward_balance' => $rewardBalance,
             'reward_title' => trim((string) ($values['reward_title'] ?? '邀请奖励')) ?: '邀请奖励',
             'reward_description' => trim((string) ($values['reward_description'] ?? '每邀请一位有效用户，即可领取一次奖励。')),
             'start_date' => $startDate,
@@ -141,28 +147,34 @@ class InviteTrafficRewardController extends Controller
         $type = $this->accountType($user);
         $noPlanReason = $this->noPlanReason($user);
         $planReady = $type !== 'none' || $this->validateOneTimePlan($config['no_plan_reward_plan_id']) !== null;
+        $hasBalanceReward = $config['reward_balance'] > 0;
         $canReduceTraffic = $type === 'periodic' && $user->getTotalUsedTraffic() >= $config['reward_bytes'];
         $message = match ($type) {
-            'none' => $planReady ? ($noPlanReason ?: '当前无套餐，领取将发放后台指定的不限时套餐和奖励总流量。') : '管理员尚未配置可领取的不限时套餐。',
-            'onetime' => '不限时套餐可领取为增加总流量。',
-            default => '周期套餐可选择减免已用流量或延长有效期。',
+            'none' => $planReady ? ($noPlanReason ?: '当前无套餐，领取将发放后台指定的不限时套餐和奖励总流量。') : ($hasBalanceReward ? '当前无套餐，可领取余额奖励。' : '管理员尚未配置可领取的不限时套餐。'),
+            'onetime' => '不限时套餐可选择增加总流量或领取余额。',
+            default => '周期套餐可选择减免已用流量、延长有效期或领取余额。',
         };
         if ($type === 'periodic' && !$canReduceTraffic) {
-            $message = '当前已用流量不足一份奖励，暂不能减免；仍可选择延长套餐有效期。';
+            $message = $hasBalanceReward
+                ? '当前已用流量不足一份奖励，暂不能减免；仍可选择延长套餐有效期或领取余额。'
+                : '当前已用流量不足一份奖励，暂不能减免；仍可选择延长套餐有效期。';
         }
 
         return [
-            'can_claim' => !$user->banned && $pendingCount > 0 && $planReady,
+            'can_claim' => !$user->banned && $pendingCount > 0 && ($planReady || $hasBalanceReward),
             'message' => $user->banned ? '当前账户不可领取邀请奖励。' : ($pendingCount ? $message : '暂无可领取的有效邀请。'),
             'invited_count' => $invitedCount,
             'valid_invite_count' => $validInviteCount,
             'claimed_count' => $claimedCount,
             'pending_count' => $pendingCount,
             'account_type' => $type,
+            'plan_reward_available' => $planReady,
             'can_reduce_traffic' => $canReduceTraffic,
             'no_plan_reason' => $noPlanReason,
             'reward_traffic' => $this->formatBytes($config['reward_bytes']),
             'extension_duration' => $this->formatDuration($config['extension_seconds']),
+            'reward_balance' => $this->formatBalance($config['reward_balance']),
+            'has_balance_reward' => $hasBalanceReward,
             'start_date' => $config['start_date'],
             'reward_title' => $config['reward_title'],
             'reward_description' => $config['reward_description'],
@@ -209,6 +221,7 @@ class InviteTrafficRewardController extends Controller
                 'claim.reward_type',
                 'claim.reward_bytes',
                 'claim.extension_seconds',
+                'claim.reward_balance',
                 'claim.claimed_at',
                 'invitee.email as invitee_email',
             ])
@@ -286,8 +299,12 @@ class InviteTrafficRewardController extends Controller
         return $tryOutPlanId > 0 && (int) $user->plan_id === $tryOutPlanId;
     }
 
-    private function rewardTypeFor(User $user, string $mode): ?string
+    private function rewardTypeFor(User $user, string $mode, array $config): ?string
     {
+        if ($mode === 'balance' && $config['reward_balance'] > 0) {
+            return 'balance';
+        }
+
         return match ($this->accountType($user)) {
             'none' => $mode === 'plan' ? 'plan' : null,
             'onetime' => $mode === 'quota' ? 'quota' : null,
@@ -345,6 +362,12 @@ class InviteTrafficRewardController extends Controller
         $user->transfer_enable = $current > PHP_INT_MAX - $bytes ? PHP_INT_MAX : $current + $bytes;
     }
 
+    private function increaseBalance(User $user, int $balance): void
+    {
+        $current = max(0, (int) ($user->balance ?? 0));
+        $user->balance = $current > PHP_INT_MAX - $balance ? PHP_INT_MAX : $current + $balance;
+    }
+
     private function claimRewardLabel(object $claim): string
     {
         return match ($claim->reward_type) {
@@ -352,6 +375,7 @@ class InviteTrafficRewardController extends Controller
             'quota' => '增加总流量 ' . $this->formatBytes((int) $claim->reward_bytes),
             'traffic' => '减免已用流量 ' . $this->formatBytes((int) $claim->reward_bytes),
             'extension' => '延长有效期 ' . $this->formatDuration((int) $claim->extension_seconds),
+            'balance' => '领取余额 ' . $this->formatBalance((int) $claim->reward_balance),
             default => '已领取奖励',
         };
     }
@@ -380,6 +404,11 @@ class InviteTrafficRewardController extends Controller
             return rtrim(rtrim(number_format($bytes / self::BYTES_PER_GB, 2, '.', ''), '0'), '.') . ' GB';
         }
         return rtrim(rtrim(number_format($bytes / self::BYTES_PER_MB, 2, '.', ''), '0'), '.') . ' MB';
+    }
+
+    private function formatBalance(int $balance): string
+    {
+        return rtrim(rtrim(number_format($balance / 100, 2, '.', ''), '0'), '.') . ' 元';
     }
 
     private function formatDuration(int $seconds): string
