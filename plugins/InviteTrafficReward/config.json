@@ -1,0 +1,16 @@
+{
+  "name": "邀请流量返利",
+  "code": "invite_traffic_reward",
+  "version": "1.0.15",
+  "description": "邀请有效新用户后领取流量减免、套餐有效期或不限时套餐奖励。",
+  "author": "xlee7s",
+  "require": { "xboard": ">=1.0.0" },
+  "config": {
+    "effective_invite_start_date": { "type": "string", "default": "2026-10-23", "label": "有效邀请起始日期", "description": "仅统计此日期 00:00:00 之后注册、且邀请人是当前账户的未封禁用户。格式：YYYY-MM-DD。" },
+    "reward_traffic_mb": { "type": "number", "default": 1024, "label": "每位邀请奖励流量（MB）", "description": "无套餐领取不限时套餐时发放此额度总流量；不限时套餐用户每次领取增加此额度总流量；周期套餐选择流量减免时，按此额度减免已用流量。" },
+    "no_plan_reward_plan_id": { "type": "select", "default": "0", "label": "无套餐奖励的不限时套餐（必选）", "description": "必须选择一个不限时套餐；试用套餐不会出现在此列表中。未选择或套餐无效时，无套餐用户不能领取。切换为新套餐后，当前使用旧奖励套餐的所有用户仅会更新 plan_id，流量、已用流量、到期时间和试用数据均保持不变。", "options": [{ "value": "0", "label": "请选择不限时套餐" }] },
+    "traffic_per_day_mb": { "type": "number", "default": 1024, "label": "延长一天所需流量（MB）", "description": "周期套餐选择延长有效期时，按“每位邀请奖励流量 ÷ 此值”折算为有效期；支持按小时精确延长。" },
+    "reward_title": { "type": "string", "default": "邀请奖励", "label": "奖励标题", "description": "显示在用户领取弹窗中的标题。" },
+    "reward_description": { "type": "text", "default": "每邀请一位有效用户，即可领取一次奖励。", "label": "奖励说明", "description": "显示在用户领取弹窗中的说明。" }
+  }
+}

@@ -49,7 +49,7 @@
       + '<button class="reward-claim-close" type="button" aria-label="关闭">×</button>'
       + '<div class="reward-claim-icon"><span>🎁</span></div><h2></h2><p class="reward-claim-description"></p>'
       + '<div class="reward-claim-amount"><span>随机减免已用流量</span><strong>' + data.reward_range.min + ' <i>—</i> ' + data.reward_range.max + '</strong></div>'
-      + '<div class="reward-claim-rules"><div><b>✓ 可领取</b><p>账户正常、套餐未到期，并达到领取间隔。</p></div>'
+      + '<div class="reward-claim-rules"><div><b>✓ 可领取</b><p>账户正常、套餐未到期，有订单，并达到领取间隔。</p></div>'
       + '<div><b>× 不可领取</b><p>无套餐、到期、封禁、流量包、试用或未到时间。</p></div></div>'
       + '<p class="reward-claim-hint"></p><button class="reward-claim-button" type="button"></button></section>';
     modal.querySelector('h2').textContent = data.reward_title;
@@ -101,11 +101,11 @@
     var trigger = document.createElement('button');
     trigger.id = MOBILE_TRIGGER_ID;
     trigger.type = 'button';
-    trigger.innerHTML = '<span>🎁</span> 领取流量';
+    trigger.innerHTML = '<span>🎁</span> 每日流量';
     trigger.style.left = window.matchMedia('(max-width: 767px)').matches ? '18px' : '24px';
     trigger.style.right = 'auto';
     trigger.style.bottom = window.matchMedia('(max-width: 767px)').matches ? '22px' : '24px';
-    trigger.setAttribute('aria-label', '领取流量');
+    trigger.setAttribute('aria-label', '每日流量');
     trigger.addEventListener('click', openReward);
     document.body.appendChild(trigger);
   }
