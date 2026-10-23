@@ -24,7 +24,10 @@ class RewardClaimController extends Controller
             ->latest('claimed_at')
             ->first();
 
-        return $this->success($this->statusData($user, $config, $lastClaim?->claimed_at));
+        $status = $this->statusData($user, $config, $lastClaim?->claimed_at);
+        $status['claim_records'] = $this->recentClaimRecords($user->id);
+
+        return $this->success($status);
     }
 
     public function claim(Request $request): JsonResponse
@@ -71,6 +74,7 @@ class RewardClaimController extends Controller
                 'message' => sprintf('领取成功，已减免 %s 已用流量。', $this->formatBytes($reducedBytes)),
                 'reduced_bytes' => $reducedBytes,
                 'next_claim_at' => $now + ((int) $config['claim_interval_hours'] * 3600),
+                'claim_record' => $this->claimRecord($now, $reducedBytes),
             ]);
         });
     }
@@ -162,6 +166,25 @@ class RewardClaimController extends Controller
         $deductDown = min((int) ($user->d ?? 0), $bytes);
         $user->d = (int) ($user->d ?? 0) - $deductDown;
         $user->u = max(0, (int) ($user->u ?? 0) - ($bytes - $deductDown));
+    }
+
+    private function recentClaimRecords(int $userId): array
+    {
+        return DB::table('v2_reward_claims')
+            ->where('user_id', $userId)
+            ->latest('claimed_at')
+            ->limit(5)
+            ->get(['claimed_at', 'reward_bytes'])
+            ->map(fn ($record) => $this->claimRecord((int) $record->claimed_at, (int) $record->reward_bytes))
+            ->all();
+    }
+
+    private function claimRecord(int $claimedAt, int $rewardBytes): array
+    {
+        return [
+            'date' => date('Y-m-d H:i', $claimedAt),
+            'traffic' => $this->formatBytes($rewardBytes),
+        ];
     }
 
     private function formatBytes(int $bytes): string
