@@ -129,6 +129,12 @@ class RewardClaimController extends Controller
             return '仅已购买有效周期套餐的用户可以领取奖励。';
         }
 
+        // Keep the trial-plan rule aligned with InviteTrafficReward: a trial plan
+        // remains a trial even when an administrator sets it to unlimited.
+        if ($this->isTryOutPlan($user)) {
+            return '试用套餐不可领取奖励。';
+        }
+
         if ($user->expired_at === null || (int) $user->expired_at <= time()) {
             return '仅未到期的周期套餐用户可以领取奖励；不限时流量包不可领取。';
         }
@@ -152,6 +158,13 @@ class RewardClaimController extends Controller
         }
 
         return null;
+    }
+
+    private function isTryOutPlan(User $user): bool
+    {
+        $tryOutPlanId = (int) admin_setting('try_out_plan_id', 0);
+
+        return $tryOutPlanId > 0 && (int) $user->plan_id === $tryOutPlanId;
     }
 
     private function randomRewardBytes(array $config, int $usedTraffic): int
