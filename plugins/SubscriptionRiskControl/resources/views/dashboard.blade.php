@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ $title }}</title>
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.2.5">
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.2.5">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.2.6">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.2.6">
 </head>
 <body>
   <main class="src-page">
@@ -71,6 +71,6 @@
   </div>
   <div class="src-toast" id="toast" role="status"></div>
   <script>window.SUBSCRIPTION_RISK_CONTROL = { adminPath: @json($admin_path), embedded: @json($embedded) };</script>
-  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.2.5" defer></script>
+  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.2.6" defer></script>
 </body>
 </html>

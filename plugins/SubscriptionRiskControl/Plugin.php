@@ -10,15 +10,13 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Events\RouteMatched;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Plugin\SubscriptionRiskControl\Services\SubscriptionRiskService;
 
 class Plugin extends AbstractPlugin
 {
-    private const ASSET_VERSION = '2.2.5';
+    private const ASSET_VERSION = '2.2.6';
 
     public function boot(): void
     {
@@ -29,7 +27,7 @@ class Plugin extends AbstractPlugin
         $this->ensureTrustedProxyDefaults();
         $this->ensurePublishedAssets();
         $this->registerAdminMenuInjector();
-        $this->registerResetNoticeInterceptor();
+        $this->registerInvalidTokenInterceptor();
         $this->filter('client.subscribe.servers', [$this, 'inspectSubscription'], 1);
     }
 
@@ -375,15 +373,13 @@ class Plugin extends AbstractPlugin
     }
 
     /**
-     * RouteMatched runs before the route's `client` middleware. It lets this
-     * plugin recognise a Token it deliberately invalidated and return the
-     * helpful reset page for both the normal and legacy subscribe routes,
-     * without changing core authentication behavior for arbitrary invalid
-     * subscription links.
+     * RouteMatched runs before the route's `client` middleware. Give every
+     * supplied but invalid subscription Token the same helpful explanation on
+     * both subscription routes, without storing historical Token values.
      */
-    private function registerResetNoticeInterceptor(): void
+    private function registerInvalidTokenInterceptor(): void
     {
-        $key = 'subscription-risk-control.reset-notice-route-listener';
+        $key = 'subscription-risk-control.invalid-token-route-listener';
         if (app()->bound($key)) {
             return;
         }
@@ -398,18 +394,13 @@ class Plugin extends AbstractPlugin
             }
 
             try {
-                if (!Schema::hasTable('v2_subscription_risk_reset_notices')) {
-                    return;
-                }
-                $notice = DB::table('v2_subscription_risk_reset_notices')
-                    ->where('token_hash', hash('sha256', $token))
-                    ->where('expires_at', '>=', time())
-                    ->first();
-                if (!$notice) {
+                if (User::query()->where('token', $token)->exists()) {
                     return;
                 }
             } catch (\Throwable $e) {
-                Log::warning('SubscriptionRiskControl reset notice lookup failed', ['error' => $e->getMessage()]);
+                // Preserve Xboard's original auth response if this lightweight
+                // lookup is unavailable for any reason.
+                Log::warning('SubscriptionRiskControl invalid token lookup failed', ['error' => $e->getMessage()]);
                 return;
             }
 

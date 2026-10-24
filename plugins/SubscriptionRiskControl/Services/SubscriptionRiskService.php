@@ -7,7 +7,6 @@ use App\Utils\Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class SubscriptionRiskService
 {
@@ -15,7 +14,6 @@ class SubscriptionRiskService
     private const EVENT_TABLE = 'v2_subscription_risk_events';
     private const WATCHLIST_TABLE = 'v2_subscription_risk_watchlist';
     private const BANLIST_TABLE = 'v2_subscription_risk_banlist';
-    private const RESET_NOTICE_TABLE = 'v2_subscription_risk_reset_notices';
 
     /**
      * @return array{action: 'token'|'token_uuid'|'ua_blocked', reasons: array<int, string>, reset: bool, email?: string}|null
@@ -66,15 +64,13 @@ class SubscriptionRiskService
 
             $action = $highReasons !== [] ? 'token_uuid' : 'token';
             $reasons = $highReasons !== [] ? $highReasons : $normalReasons;
-            $previousToken = (string) $user->token;
-            $previousTokenSuffix = substr($previousToken, -6);
+            $previousTokenSuffix = substr((string) $user->token, -6);
             $user->token = Helper::guid();
             if ($action === 'token_uuid') {
                 $user->uuid = Helper::guid(true);
             }
             $user->save();
 
-            $this->rememberResetNotice($previousToken, $user->id, $action, $now);
             $this->upsertWatchlist($user->id, $action, $reasons, $now);
             $this->recordEvent($user->id, $action, $reasons, $ip, $userAgent, $normal, $high, $now);
 
@@ -256,35 +252,7 @@ class SubscriptionRiskService
         $deleted = $days === 0 ? 0 : DB::table(self::REQUEST_TABLE)
             ->where('requested_at', '<', time() - $days * 86400)
             ->delete();
-        if (Schema::hasTable(self::RESET_NOTICE_TABLE)) {
-            DB::table(self::RESET_NOTICE_TABLE)->where('expires_at', '<', time())->delete();
-        }
         return $deleted;
-    }
-
-    /**
-     * Keep only a hash of the invalidated link. The core authentication
-     * middleware uses it to show a helpful page for a link this plugin reset,
-     * while unrelated invalid tokens still receive the standard error.
-     */
-    private function rememberResetNotice(string $token, int $userId, string $action, int $now): void
-    {
-        if ($token === '') {
-            return;
-        }
-        if (!Schema::hasTable(self::RESET_NOTICE_TABLE)) {
-            return;
-        }
-        DB::table(self::RESET_NOTICE_TABLE)->updateOrInsert(
-            ['token_hash' => hash('sha256', $token)],
-            [
-                'user_id' => $userId,
-                'action' => $action,
-                'expires_at' => $now + 30 * 86400,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]
-        );
     }
 
     private function recordPull(int $userId, string $ip, string $userAgent, int $now, bool $isAllowed = true, ?string $blockReason = null): void

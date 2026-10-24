@@ -22,7 +22,7 @@
       <h1 class="title">此订阅链接只能用于订阅软件</h1>
       <p class="copy">为保护订阅链接安全，此链接仅限受支持的订阅软件使用。当前访问方式无法获取订阅内容。</p>
       <div class="notice"><b>提示</b><span>这不会重置你的订阅链接，也不会影响已正常导入的设备。</span></div>
-      <div class="guide"><div class="guide-icon" aria-hidden="true">i</div><div><h2>如何继续</h2><p>请使用订阅软件重新导入或更新订阅；若仍无法使用，请联系管理员确认该订阅软件是否受支持。</p></div></div>
+      <div class="guide"><div class="guide-icon" aria-hidden="true">i</div><div><h2>如何继续</h2><p>请在订阅软件中使用此链接；若无法使用，请前往官网提交工单，把你所使用的软件名字提交给管理员。</p></div></div>
     </section>
     <footer class="footer">{{ $app_name }} · 订阅链接访问保护</footer>
   </main>

@@ -1,7 +1,7 @@
 {
   "name": "订阅封控",
   "code": "subscription_risk_control",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "检测订阅拉取异常，按风险等级重置订阅 Token 或 Token 与 UUID，并持续观察风险账户。",
   "author": "xlee7s",
   "require": {
