@@ -14,6 +14,8 @@ return new class extends Migration {
                 $table->string('ip', 45)->nullable();
                 $table->string('user_agent', 512)->nullable();
                 $table->char('user_agent_hash', 64);
+                $table->boolean('is_allowed')->default(true)->index();
+                $table->string('block_reason', 255)->nullable();
                 $table->unsignedInteger('requested_at')->index();
                 $table->unsignedInteger('created_at');
                 $table->index(['user_id', 'requested_at']);

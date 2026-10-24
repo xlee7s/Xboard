@@ -38,6 +38,12 @@ return new class extends Migration {
             if (!Schema::hasColumn($table, 'user_agent_hash')) {
                 $blueprint->char('user_agent_hash', 64)->nullable();
             }
+            if (!Schema::hasColumn($table, 'is_allowed')) {
+                $blueprint->boolean('is_allowed')->default(true)->index();
+            }
+            if (!Schema::hasColumn($table, 'block_reason')) {
+                $blueprint->string('block_reason', 255)->nullable();
+            }
             if (!Schema::hasColumn($table, 'requested_at')) {
                 $blueprint->unsignedInteger('requested_at')->nullable()->index();
             }

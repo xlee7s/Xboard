@@ -9,21 +9,27 @@ use App\Services\Plugin\AbstractPlugin;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Plugin\SubscriptionRiskControl\Services\SubscriptionRiskService;
 
 class Plugin extends AbstractPlugin
 {
-    private const ASSET_VERSION = '2.0.1';
+    private const ASSET_VERSION = '2.2.5';
 
     public function boot(): void
     {
         $this->migrateHighRiskDefaults();
         $this->normalizeHighRiskThresholds();
         $this->removeLegacyManualReleaseConfig();
+        $this->ensureAllowedUserAgentDefaults();
+        $this->ensureTrustedProxyDefaults();
         $this->ensurePublishedAssets();
         $this->registerAdminMenuInjector();
+        $this->registerResetNoticeInterceptor();
         $this->filter('client.subscribe.servers', [$this, 'inspectSubscription'], 1);
     }
 
@@ -59,11 +65,22 @@ class Plugin extends AbstractPlugin
             $this->queueResetEmail($decision);
         }
 
-        $message = $decision['action'] === 'token_uuid'
-            ? '检测到订阅拉取高危异常，订阅链接和节点认证信息已重置。请登录用户中心获取新的订阅链接并重新导入客户端。'
-            : '检测到订阅拉取异常，订阅链接已重置。请登录用户中心获取新的订阅链接。';
+        if ($decision['action'] === 'ua_blocked') {
+            $this->intercept(response()
+                ->view('SubscriptionRiskControl::ua-blocked', [
+                    'app_name' => (string) admin_setting('app_name', 'XBoard'),
+                ], 403)
+                ->header('Cache-Control', 'no-store, private')
+            );
+        }
 
-        $this->intercept(response($message, 403, ['Content-Type' => 'text/plain; charset=UTF-8']));
+        $this->intercept(response()
+            ->view('SubscriptionRiskControl::risk-reset', [
+                'app_name' => (string) admin_setting('app_name', 'XBoard'),
+                'is_high_risk' => $decision['action'] === 'token_uuid',
+            ], 403)
+            ->header('Cache-Control', 'no-store, private')
+        );
     }
 
     /** @param array{action: string, email?: string} $decision */
@@ -203,6 +220,97 @@ class Plugin extends AbstractPlugin
         $this->setConfig($config);
     }
 
+    /**
+     * Existing installations predate allowed_user_agents. Persist the shipped
+     * baseline once so the configuration page is truthful and an empty saved
+     * value cannot accidentally block every subscription client.
+     */
+    private function ensureAllowedUserAgentDefaults(): void
+    {
+        $plugin = PluginModel::query()->where('code', $this->getPluginCode())->first();
+        if (!$plugin) {
+            return;
+        }
+
+        $config = json_decode((string) $plugin->config, true) ?: [];
+        $saved = trim((string) ($config['allowed_user_agents'] ?? ''));
+        if ($saved === '') {
+            $config['allowed_user_agents'] = SubscriptionRiskService::defaultAllowedUserAgents();
+        } elseif ($this->containsAllListEntries($saved, SubscriptionRiskService::legacyDefaultAllowedUserAgents())) {
+            // Existing installations received the 39-item baseline before
+            // 2.2.4. Append only the new shipped families, preserving every
+            // custom entry and never restoring a baseline term the admin
+            // deliberately removed.
+            $expanded = implode("\n", array_values(array_unique(array_merge(
+                $this->splitListEntries($saved),
+                $this->splitListEntries(SubscriptionRiskService::defaultAllowedUserAgents())
+            ))));
+            if ($expanded === $saved) {
+                return;
+            }
+            $config['allowed_user_agents'] = $expanded;
+        } else {
+            return;
+        }
+        $plugin->config = json_encode($config, JSON_UNESCAPED_UNICODE);
+        $plugin->save();
+        $this->setConfig($config);
+    }
+
+    private function containsAllListEntries(string $saved, string $expected): bool
+    {
+        $current = array_flip(array_map('mb_strtolower', $this->splitListEntries($saved)));
+        foreach ($this->splitListEntries($expected) as $keyword) {
+            if (!isset($current[mb_strtolower($keyword)])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Existing installations had the full IPv4 Cloudflare baseline but no
+     * IPv6 proxy ranges. Upgrade only that untouched baseline; a deliberately
+     * customised proxy list remains exactly as the administrator entered it.
+     */
+    private function ensureTrustedProxyDefaults(): void
+    {
+        $plugin = PluginModel::query()->where('code', $this->getPluginCode())->first();
+        if (!$plugin) {
+            return;
+        }
+
+        $config = json_decode((string) $plugin->config, true) ?: [];
+        $saved = trim((string) ($config['trusted_proxy_ips'] ?? ''));
+        $expected = implode("\n", SubscriptionRiskService::legacyDefaultTrustedProxyIps());
+        $defaults = implode("\n", SubscriptionRiskService::defaultTrustedProxyIps());
+        if ($saved === '') {
+            $config['trusted_proxy_ips'] = $defaults;
+        } elseif ($this->containsAllListEntries($saved, $expected)) {
+            $expanded = implode("\n", array_values(array_unique(array_merge(
+                $this->splitListEntries($saved),
+                $this->splitListEntries($defaults)
+            ))));
+            if ($expanded === $saved) {
+                return;
+            }
+            $config['trusted_proxy_ips'] = $expanded;
+        } else {
+            return;
+        }
+        $plugin->config = json_encode($config, JSON_UNESCAPED_UNICODE);
+        $plugin->save();
+        $this->setConfig($config);
+    }
+
+    /** @return array<int, string> */
+    private function splitListEntries(string $value): array
+    {
+        $normalized = str_replace(['\\r\\n', '\\n', '\\r'], "\n", trim($value));
+        $items = preg_split('/[\r\n\t ,;，；]+/u', $normalized) ?: [];
+        return array_values(array_filter(array_map('trim', $items), static fn (string $item): bool => $item !== ''));
+    }
+
     /** Keep high-risk thresholds strictly below their normal-risk counterparts. */
     private function normalizeHighRiskThresholds(): void
     {
@@ -236,7 +344,16 @@ class Plugin extends AbstractPlugin
             }
             $value = (int) $config[$key];
             // A zero IP/UA value explicitly disables that high-risk signal.
-            if (($key !== 'high_request_limit' && $value === 0) || $normal[$key] === 0 || $value < $normal[$key]) {
+            // When the normal counterpart is disabled, high risk must also be
+            // disabled so an optional rule cannot bypass its normal setting.
+            if ($key !== 'high_request_limit' && $normal[$key] === 0) {
+                if ($value !== 0) {
+                    $config[$key] = 0;
+                    $updated = true;
+                }
+                continue;
+            }
+            if (($key !== 'high_request_limit' && $value === 0) || $value < $normal[$key]) {
                 continue;
             }
             $config[$key] = max($key === 'high_request_limit' ? 1 : 0, min($default, $normal[$key] - 1));
@@ -255,6 +372,54 @@ class Plugin extends AbstractPlugin
     private function service(): SubscriptionRiskService
     {
         return app(SubscriptionRiskService::class);
+    }
+
+    /**
+     * RouteMatched runs before the route's `client` middleware. It lets this
+     * plugin recognise a Token it deliberately invalidated and return the
+     * helpful reset page for both the normal and legacy subscribe routes,
+     * without changing core authentication behavior for arbitrary invalid
+     * subscription links.
+     */
+    private function registerResetNoticeInterceptor(): void
+    {
+        $key = 'subscription-risk-control.reset-notice-route-listener';
+        if (app()->bound($key)) {
+            return;
+        }
+        app()->instance($key, true);
+        app('events')->listen(RouteMatched::class, function (RouteMatched $event): void {
+            if (!in_array($event->route->getName(), ['client.subscribe', 'client.subscribe.legacy'], true)) {
+                return;
+            }
+            $token = trim((string) ($event->request->route('token') ?: $event->request->input('token', '')));
+            if ($token === '') {
+                return;
+            }
+
+            try {
+                if (!Schema::hasTable('v2_subscription_risk_reset_notices')) {
+                    return;
+                }
+                $notice = DB::table('v2_subscription_risk_reset_notices')
+                    ->where('token_hash', hash('sha256', $token))
+                    ->where('expires_at', '>=', time())
+                    ->first();
+                if (!$notice) {
+                    return;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('SubscriptionRiskControl reset notice lookup failed', ['error' => $e->getMessage()]);
+                return;
+            }
+
+            $this->intercept(response()
+                ->view('SubscriptionRiskControl::reset-expired', [
+                    'app_name' => (string) admin_setting('app_name', 'XBoard'),
+                ], 403)
+                ->header('Cache-Control', 'no-store, private')
+            );
+        });
     }
 
     /**

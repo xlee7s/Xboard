@@ -8,7 +8,8 @@
 - 普通异常和高危异常邮件的标题、正文、邮件模板名均可在配置页分别设置。
 - 异常用户进入风控观察名单；从最近一次异常开始连续 7 天（可配置）没有再次命中规则会自动解除。
 - 白名单支持用户 ID、邮箱、单个 IP 和 IPv4/IPv6 CIDR；多个 IP / CIDR 可用换行、中文/英文逗号或中文/英文分号分隔。
-- 保存每一次有效订阅拉取的时间、用户、IP 和 User-Agent（UA），并保留异常、重置和解除记录；后台各数据列表每页显示 10 条，可独立翻页。拉取记录保留时间可配置，设为 `0` 时永久保留。
+- 允许 User-Agent 列表默认覆盖主流订阅客户端、OpenClash / Mihomo 和 PassWall；不匹配的请求会被拒绝并写入拉取记录。
+- 保存每一次允许或拦截的订阅拉取的时间、用户、IP 和 User-Agent（UA），并保留异常、重置和解除记录；后台各数据列表每页显示 10 条，可独立翻页。拉取记录保留时间可配置，设为 `0` 时永久保留。
 
 不会修改用户套餐、流量、余额或到期时间。
 
@@ -19,9 +20,21 @@
 1. **普通窗口**：拉取次数、不同 IP 数、不同 User-Agent 数任一达到阈值，重置 Token。
 2. **高危窗口**：上述任一指标在更短时间内达到更低阈值，重置 Token 与 UUID。
 
-IP 与 User-Agent 阈值设为 `0` 时，关闭该单项规则，不会报错，也不会影响拉取次数规则。例如普通 IP 数设为 `0` 后，普通风控仍可因拉取次数或 UA 数达到阈值而触发。普通和高危规则分别独立设置；高危对应 IP / UA 设为 `0`，只会关闭高危的该项判断。
+IP 与 User-Agent 阈值设为 `0` 时，关闭该单项规则，不会报错，也不会影响拉取次数规则。例如普通 IP 数设为 `0` 后，普通风控仍可因拉取次数或 UA 数达到阈值而触发。普通对应 IP / UA 关闭时，高危的同一项也会自动关闭，避免已关闭的普通规则仍触发高危重置；高危对应 IP / UA 单独设为 `0` 时，则只关闭高危的该项判断。
 
 > 拉取次数阈值不可设为 `0`：普通拉取次数最低为 2，高危拉取次数最低为 1。
+
+### 允许 User-Agent
+
+在“允许拉取的 User-Agent”中每行填写一个**不区分大小写的包含匹配关键词**；中文/英文逗号或分号也可分隔。例如填写 `clash` 会允许 `clash.meta`、`Clash Verge` 等包含该词的 UA。默认列表覆盖 v2rayN / v2rayNG、Clash / Mihomo、sing-box、Shadowrocket、Surge、Stash、Loon、Quantumult、PassWall、SagerNet、NekoBox、Hiddify、Surfboard、Happ、INCY、Mieru、Throne 等常见客户端与内核标识。
+
+未过白 User-Agent（含空 UA）的请求会立即返回 `403`，不会参与拉取次数、IP 数和 UA 数的风控计算；后台“订阅拉取记录”会保存其邮箱、IP、原始 UA，并显示“已拦截”和原因。白名单只跳过异常阈值与凭据重置，**不绕过允许 UA 校验**。
+
+风控实际重置订阅链接后，插件会只保存旧链接的 SHA-256 摘要 30 天。该期间再次在浏览器访问这个旧链接，会显示“订阅连接已失效”的说明页；其他随机或未知的无效链接仍返回系统原有的鉴权错误。
+
+### 真实用户 IP
+
+只有 TCP 请求来源属于“可信 CDN / 反代 IP / CIDR”时，才会按 `X-Forwarded-For`、`Forwarded`、`True-Client-IP`、`CF-Connecting-IP`、`X-Real-IP` 的顺序提取第一个有效公网 IP；直连访问则只记录实际连接 IP，不信任访问者自行提交的转发头。默认内置 Cloudflare 当前 IPv4/IPv6 网段和常见内网反代网段。使用其他 CDN 时，请从该 CDN 官方文档获取回源 IP / CIDR 并加入配置。任何服务端都无法恢复 CDN 未传递的原始 IP；并且必须在防火墙中禁止绕过 CDN 直连源站。
 
 默认值为：普通窗口 10 分钟内达到 12 次拉取、6 个不同 IP 或 6 个不同 UA 时处理；高危窗口 1 分钟内达到 8 次拉取、4 个不同 IP 或 4 个不同 UA 时处理。高危规则优先于普通规则，因此短时间内的高密度滥用会先重置 Token 与 UUID。达到阈值的当次请求会被重置并返回 403。重置后会从新凭据首次拉取重新计数，旧链接触发重置前的记录不会让新链接立即再次重置。
 
@@ -58,13 +71,13 @@ IP 与 User-Agent 阈值设为 `0` 时，关闭该单项规则，不会报错，
 - `GET /api/v2/{后台安全路径}/subscription-risk-control/watchlist?page=1&per_page=10&keyword=...`：当前观察名单；`keyword` 按邮箱模糊查询。
 - `GET /api/v2/{后台安全路径}/subscription-risk-control/banlist?page=1&per_page=10&keyword=...`：当前封禁名单，含命中原因与次数；`keyword` 按邮箱模糊查询。
 - `GET /api/v2/{后台安全路径}/subscription-risk-control/pulls?page=1&per_page=10&period=day|7d&keyword=...`：按今日或近 7 天统计用户拉取次数并降序排列；`keyword` 按邮箱模糊查询。
-- `GET /api/v2/{后台安全路径}/subscription-risk-control/pull-logs?page=1&per_page=10&keyword=...`：每一次订阅拉取明细，包含邮箱、IP、UA 与时间；可传 `user_id` 筛选，`keyword` 仅按邮箱模糊查询。
+- `GET /api/v2/{后台安全路径}/subscription-risk-control/pull-logs?page=1&per_page=10&keyword=...`：每一次订阅拉取明细，包含邮箱、IP、UA、允许/拦截结果和拦截原因；可传 `user_id` 筛选，`keyword` 仅按邮箱模糊查询。
 - `GET /api/v2/{后台安全路径}/subscription-risk-control/events?page=1&per_page=10&keyword=...`：风控事件记录；`user_id` 可省略，`keyword` 按邮箱模糊查询。
 - `POST /api/v2/{后台安全路径}/subscription-risk-control/release`：手动解除。
 - `POST /api/v2/{后台安全路径}/subscription-risk-control/ban`：封禁观察名单中的用户，并移出观察名单。
 - `POST /api/v2/{后台安全路径}/subscription-risk-control/unban`：解封封禁名单中的用户，移出封禁名单并重新加入观察名单。
 
-## 安装与运行
+## 安装、升级与运行
 
 1. 从插件管理页上传 ZIP、安装、启用。
 2. 在配置页打开“启用订阅风控”，确认阈值和白名单。
@@ -77,18 +90,34 @@ IP 与 User-Agent 阈值设为 `0` 时，关闭该单项规则，不会报错，
 
 计划任务每分钟负责自动解除观察名单；每天凌晨 03:20 清理超过“拉取记录保留天数”的拉取记录。
 
+升级插件后，请重新进入插件管理页完成升级，以执行新增迁移并发布前端资源。若站点使用 PHP-FPM、Octane、Swoole 或 RoadRunner 等常驻进程，还需要按当前部署方式重载对应进程；否则旧工作进程可能继续返回旧接口或旧订阅错误页。
+
+### 升级后快速核对
+
+1. 打开“订阅封控”页面，确认拉取记录的“结果”列能分别显示“已允许”或“已拦截”。
+2. 用一个已被本插件重置的旧订阅链接访问普通订阅地址或旧版 `/api/v1/client/subscribe?token=...` 地址，确认均显示“订阅连接已失效”页面；未知旧链接仍保持 Xboard 原有 `403` 错误。
+3. 如网站经 Cloudflare IPv6 回源，确认“可信 CDN / 反代 IP / CIDR”中保留默认的 Cloudflare IPv6 网段；其他 CDN 需自行加入其官方回源网段。
+
 ## 数据表
 
-插件使用以下 4 张表，表名均带 `v2_` 前缀：
+插件使用以下 5 张表，表名均带 `v2_` 前缀：
 
 | 数据表 | 用途 |
 | --- | --- |
-| `v2_subscription_risk_requests` | 每一次有效订阅拉取的用户、时间、IP、UA；用于窗口规则、拉取统计与明细查询。 |
+| `v2_subscription_risk_requests` | 每一次允许或拦截的订阅拉取：用户、时间、IP、UA、允许状态与拦截原因；允许记录用于窗口规则和拉取统计。 |
 | `v2_subscription_risk_events` | 风控命中、Token/UUID 重置、自动/手动解除、封禁及解封历史，以及管理员操作审计。 |
 | `v2_subscription_risk_watchlist` | 当前正在观察的用户、最近命中原因、处理方式及累计命中次数。 |
 | `v2_subscription_risk_banlist` | 由本插件封禁的用户、封禁时的命中原因、次数和时间。 |
+| `v2_subscription_risk_reset_notices` | 已被本插件重置的旧 Token 的 SHA-256 摘要、处理级别和过期时间；仅用于展示旧链接失效说明页，30 天后自动清理。 |
 
-拉取记录按“拉取记录保留天数”定期清理；其余三张表用于审计和当前状态，不会被该清理任务删除。卸载插件会按迁移回滚规则删除插件表；生产环境如需保留审计资料，请先自行备份以上 4 张表。
+拉取记录按“拉取记录保留天数”定期清理，旧 Token 提示摘要在到期后清理；其余三张业务表用于审计和当前状态，不会被该清理任务删除。卸载插件会按迁移回滚规则删除插件表；生产环境如需保留审计资料，请先自行备份以上 5 张表。
+
+## 2.2.5 审查修正
+
+- 普通 IP 或 UA 阈值设为 `0` 后，高危同类阈值会一并关闭，配置页和运行时规则保持一致。
+- 将 Cloudflare 官方 IPv6 回源网段及常见 IPv6 内网反代网段加入默认可信代理列表，避免 IPv6 回源时误把 CDN 地址记录为用户 IP。
+- 旧 Token 失效说明页同时覆盖普通订阅地址和 Xboard 旧版 API 订阅地址。
+- 更新数据表、保留策略、升级重载与核对步骤说明。
 
 ## 删除保护
 

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ $title }}</title>
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.0.1">
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.0.1">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.2.5">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.2.5">
 </head>
 <body>
   <main class="src-page">
@@ -48,7 +48,7 @@
 
     <section class="src-panel">
       <div class="src-panel-head"><div><h2>订阅拉取记录</h2><p>保存每一次有效订阅拉取，保留时长可在插件配置页设置。</p></div><div class="src-log-tools"><form id="pull-log-search" class="src-search"><input id="pull-log-keyword" type="search" maxlength="255" placeholder="搜索邮箱"><button type="submit">查询</button></form><span class="src-count" id="pull-log-count"></span></div></div>
-      <div class="src-table-wrap"><table><thead><tr><th>拉取时间</th><th>用户</th><th>IP 地址</th><th>User-Agent（UA）</th></tr></thead><tbody id="pull-logs"><tr><td colspan="4" class="src-empty">正在加载…</td></tr></tbody></table></div>
+      <div class="src-table-wrap"><table><thead><tr><th>拉取时间</th><th>用户</th><th>IP 地址</th><th>User-Agent（UA）</th><th>结果</th></tr></thead><tbody id="pull-logs"><tr><td colspan="5" class="src-empty">正在加载…</td></tr></tbody></table></div>
       <div class="src-pager" id="pull-logs-pager"></div>
     </section>
 
@@ -71,6 +71,6 @@
   </div>
   <div class="src-toast" id="toast" role="status"></div>
   <script>window.SUBSCRIPTION_RISK_CONTROL = { adminPath: @json($admin_path), embedded: @json($embedded) };</script>
-  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.0.1" defer></script>
+  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.2.5" defer></script>
 </body>
 </html>

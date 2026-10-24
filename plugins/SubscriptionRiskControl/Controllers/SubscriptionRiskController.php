@@ -27,6 +27,7 @@ class SubscriptionRiskController extends Controller
         return response()->json(['data' => [
             'watching' => DB::table(self::WATCHLIST_TABLE)->count(),
             'today_pulls' => DB::table(self::REQUEST_TABLE)
+                ->where('is_allowed', true)
                 ->where('requested_at', '>=', $today)
                 ->count(),
             'today_normal' => DB::table(self::EVENT_TABLE)
@@ -110,6 +111,7 @@ class SubscriptionRiskController extends Controller
         $period = (string) $request->query('period', 'day');
         $from = $period === '7d' ? now()->subDays(7)->timestamp : now()->startOfDay()->timestamp;
         $base = DB::table(self::REQUEST_TABLE . ' as pull')
+            ->where('pull.is_allowed', true)
             ->where('pull.requested_at', '>=', $from);
         $keyword = trim((string) $request->query('keyword', ''));
         if ($keyword !== '') {
@@ -164,22 +166,35 @@ class SubscriptionRiskController extends Controller
         }
         $total = (clone $query)->count();
         $items = $query->orderByDesc('pull.requested_at')->orderByDesc('pull.id')->forPage($page, $perPage)->get([
-            'pull.id', 'pull.user_id', 'user.email', 'pull.ip', 'pull.user_agent', 'pull.requested_at',
-        ])->map(fn (object $item): array => [
-            'id' => (int) $item->id,
-            'user_id' => (int) $item->user_id,
-            'email' => (string) ($item->email ?? '已删除用户'),
-            'ip' => $item->ip,
-            'user_agent' => $item->user_agent,
-            'requested_at' => (int) $item->requested_at,
-        ])->all();
+            'pull.id', 'pull.user_id', 'user.email', 'pull.ip', 'pull.user_agent', 'pull.is_allowed', 'pull.block_reason', 'pull.requested_at',
+        ])->map(function (object $item): array {
+            // MySQL returns tinyint values as strings. Expose one explicit
+            // result field so the browser never has to guess from a missing
+            // or loosely-typed value.
+            $isAllowed = (int) $item->is_allowed === 1;
+            return [
+                'id' => (int) $item->id,
+                'user_id' => (int) $item->user_id,
+                'email' => (string) ($item->email ?? '已删除用户'),
+                'ip' => $item->ip,
+                'user_agent' => $item->user_agent,
+                'result' => $isAllowed ? 'allowed' : 'blocked',
+                'block_reason' => $item->block_reason,
+                'requested_at' => (int) $item->requested_at,
+            ];
+        })->all();
 
         return response()->json(['data' => [
+            // The dashboard rejects responses without this marker. That
+            // prevents an old long-running PHP worker from relabelling a
+            // blocked record as allowed after an upgrade.
+            'decision_schema' => 1,
             'items' => $items,
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
-        ]]);
+        ]])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function events(Request $request): JsonResponse

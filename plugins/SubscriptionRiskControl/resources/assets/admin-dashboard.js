@@ -19,7 +19,14 @@
   }
   function api(path, options) {
     options = options || {};
+    // Pull-log decisions must always come from the current server response.
+    // A cached GET response could otherwise show a previous decision after an
+    // administrator changes the allowed subscription software list.
+    options.cache = 'no-store';
     options.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': token(), 'Content-Language': localStorage.getItem('i18nextLng') || 'zh-CN' }, options.headers || {});
+    if (!options.method || String(options.method).toUpperCase() === 'GET') {
+      path += (path.indexOf('?') === -1 ? '?' : '&') + '_src=' + Date.now();
+    }
     return fetch(base + path, options).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (body) {
         if (!response.ok) throw new Error(body.message || '请求失败，请确认管理员登录状态。');
@@ -150,14 +157,30 @@
     var body = document.getElementById('pull-logs');
     setText('pull-log-count', data.total ? '累计 ' + data.total + ' 条' : '');
     if (!data.items || !data.items.length) {
-      body.innerHTML = '<tr><td colspan="4" class="src-empty">' + (keywords.pullLogs ? '未发现该邮箱的记录，请检查后重试。' : '暂无订阅拉取记录。') + '</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="src-empty">' + (keywords.pullLogs ? '未发现该邮箱的记录，请检查后重试。' : '暂无订阅拉取记录。') + '</td></tr>';
       renderPager('pullLogs', data);
       return;
     }
     body.innerHTML = data.items.map(function (item) {
-      return '<tr><td>' + time(item.requested_at) + '</td><td><b>' + esc(item.email) + '</b><small>ID: ' + esc(item.user_id) + '</small></td><td class="src-ip">' + esc(item.ip || '–') + '</td><td class="src-user-agent">' + esc(item.user_agent || '未提供 UA') + '</td></tr>';
+      var result = item.result === 'blocked'
+        ? '<span class="src-badge danger">已拦截</span><small>' + esc(item.block_reason || '未过白User-Agent') + '</small>'
+        : '<span class="src-badge success">已允许</span>';
+      return '<tr><td>' + time(item.requested_at) + '</td><td><b>' + esc(item.email) + '</b><small>ID: ' + esc(item.user_id) + '</small></td><td class="src-ip">' + esc(item.ip || '–') + '</td><td class="src-user-agent">' + esc(item.user_agent || '未提供 UA') + '</td><td>' + result + '</td></tr>';
     }).join('');
     renderPager('pullLogs', data);
+  }
+  function loadPullLogs(path, attempt) {
+    return api(path).then(function (data) {
+      if (data.decision_schema === 1) return data;
+      // Do not render an old worker response: it does not contain the
+      // authoritative decision and would make intercepted records appear as
+      // allowed. Retry briefly in case PHP-FPM is rotating workers.
+      if (attempt < 3) {
+        return new Promise(function (resolve) { window.setTimeout(resolve, 250); })
+          .then(function () { return loadPullLogs(path, attempt + 1); });
+      }
+      throw new Error('订阅拉取记录服务仍在使用旧版本，请重启 PHP-FPM 或 Octane 后再刷新。');
+    });
   }
   function load() {
     document.getElementById('refresh').disabled = true;
@@ -171,7 +194,7 @@
     if (keywords.pulls) pullsPath += '&keyword=' + encodeURIComponent(keywords.pulls);
     if (keywords.pullLogs) pullLogPath += '&keyword=' + encodeURIComponent(keywords.pullLogs);
     if (keywords.events) eventsPath += '&keyword=' + encodeURIComponent(keywords.events);
-    Promise.all([api('/summary'), api(watchlistPath), api(banlistPath), api(pullsPath), api(pullLogPath), api(eventsPath)]).then(function (values) {
+    Promise.all([api('/summary'), api(watchlistPath), api(banlistPath), api(pullsPath), loadPullLogs(pullLogPath, 0), api(eventsPath)]).then(function (values) {
       var summary = values[0];
       setText('watching', summary.watching);
       setText('today-pulls', summary.today_pulls);

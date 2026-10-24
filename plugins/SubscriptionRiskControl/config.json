@@ -1,7 +1,7 @@
 {
   "name": "订阅封控",
   "code": "subscription_risk_control",
-  "version": "2.0.1",
+  "version": "2.2.5",
   "description": "检测订阅拉取异常，按风险等级重置订阅 Token 或 Token 与 UUID，并持续观察风险账户。",
   "author": "xlee7s",
   "require": {
@@ -68,6 +68,12 @@
       "label": "自动解除观察天数",
       "description": "进入观察名单后，连续未命中异常达到此天数自动解除。再次命中会重新计时。"
     },
+    "allowed_user_agents": {
+      "type": "text",
+      "default": "v2rayn\nv2rayng\nv2ray\nsingbox\nhomeproxy\nmomo\nssr-plus\nclash\nmihomo\nmeta\nverge\nflclash\nnekobox\nnekoray\nclashmetaforandroid\nsing-box\nhiddify\nsfm\nshadowrocket\nsurge\nstash\nloon\nquantumult\npasswall\nssrplus\nsagernet\ngeneral\ntidalab\ntunnelab\nkaring\nhapp\nmatsuri\nstreisand\nsurfboard\negern\nv2box\nfoxray\nkitsunebi\nnpv\nincy\nv2plus\nxray\ninvisibleman\nmieru\nthrone\nvarmlen",
+      "label": "允许拉取的 User-Agent",
+      "description": "仅允许 UA 包含列表中任一关键词的订阅拉取；每行一个关键词，也支持逗号或分号分隔，不区分大小写。未匹配请求会返回 403 并记录为“已拦截”。白名单用户同样需要匹配此列表。"
+    },
     "whitelist_user_ids": {
       "type": "text",
       "default": "",
@@ -85,6 +91,18 @@
       "default": "",
       "label": "白名单 IP / CIDR",
       "description": "白名单跳过异常判定与凭据重置，但仍记录有效拉取。支持单个 IP 与 CIDR，使用换行、逗号或分号分隔。"
+    },
+    "real_ip_headers": {
+      "type": "text",
+      "default": "X-Forwarded-For, Forwarded, True-Client-IP, CF-Connecting-IP, X-Real-IP",
+      "label": "真实用户 IP 请求头优先级",
+      "description": "按顺序从 CDN / 反代请求头中提取用户 IP，支持换行、逗号或分号分隔。多级 CDN 默认优先使用 X-Forwarded-For 的第一个公网 IP；源站必须禁止公网直连，避免伪造请求头。"
+    },
+    "trusted_proxy_ips": {
+      "type": "text",
+      "default": "173.245.48.0/20\n103.21.244.0/22\n103.22.200.0/22\n103.31.4.0/22\n141.101.64.0/18\n108.162.192.0/18\n190.93.240.0/20\n188.114.96.0/20\n197.234.240.0/22\n198.41.128.0/17\n162.158.0.0/15\n104.16.0.0/13\n104.24.0.0/14\n172.64.0.0/13\n131.0.72.0/22\n10.0.0.0/8\n172.16.0.0/12\n192.168.0.0/16\n169.254.0.0/16\n127.0.0.0/8\n2400:cb00::/32\n2606:4700::/32\n2803:f800::/32\n2405:b500::/32\n2405:8100::/32\n2a06:98c0::/29\n2c0f:f248::/32\n::1/128\nfc00::/7\nfe80::/10",
+      "label": "可信 CDN / 反代 IP / CIDR",
+      "description": "只有请求来源属于此列表时才信任真实 IP 请求头，防止直连请求伪造 IP。已内置 Cloudflare IPv4/IPv6 与常见内网反代网段；使用其他 CDN 时，请把其官方回源 IP / CIDR 逐行添加。"
     },
     "send_reset_email": {
       "type": "boolean",
