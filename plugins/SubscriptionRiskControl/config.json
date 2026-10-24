@@ -1,0 +1,192 @@
+{
+  "name": "订阅封控",
+  "code": "subscription_risk_control",
+  "version": "2.0.1",
+  "description": "检测订阅拉取异常，按风险等级重置订阅 Token 或 Token 与 UUID，并持续观察风险账户。",
+  "author": "xlee7s",
+  "require": {
+    "xboard": ">=1.0.0"
+  },
+  "config": {
+    "status": {
+      "type": "boolean",
+      "default": false,
+      "label": "启用订阅风控",
+      "description": "开启后仅检查可正常返回的订阅拉取请求。命中普通异常重置 Token；命中高危异常同时重置 Token 和节点认证 UUID。"
+    },
+    "normal_window_minutes": {
+      "type": "number",
+      "default": 10,
+      "label": "普通检测窗口（分钟）",
+      "description": "统计普通异常的时间范围，最小 5 分钟。"
+    },
+    "normal_request_limit": {
+      "type": "number",
+      "default": 12,
+      "label": "普通异常：拉取次数",
+      "description": "窗口内达到该次数即判定普通异常并重置 Token。"
+    },
+    "normal_ip_limit": {
+      "type": "number",
+      "default": 6,
+      "label": "普通异常：不同 IP 数",
+      "description": "窗口内达到该不同 IP 数即判定普通异常；设为 0 可关闭此规则。"
+    },
+    "normal_user_agent_limit": {
+      "type": "number",
+      "default": 6,
+      "label": "普通异常：不同 UA 数",
+      "description": "窗口内达到该不同 User-Agent 数即判定普通异常；设为 0 可关闭此规则。"
+    },
+    "high_window_minutes": {
+      "type": "number",
+      "default": 1,
+      "label": "高危检测窗口（分钟）",
+      "description": "统计明确自动化行为的时间范围。必须短于普通检测窗口；设为相等或更长时自动使用默认 1 分钟。"
+    },
+    "high_request_limit": {
+      "type": "number",
+      "default": 8,
+      "label": "高危：拉取次数",
+      "description": "窗口内达到该次数即判定高危，并同时重置 Token 和 UUID。必须低于普通拉取次数；设为相等或更高时自动使用安全默认值。"
+    },
+    "high_ip_limit": {
+      "type": "number",
+      "default": 4,
+      "label": "高危：不同 IP 数",
+      "description": "窗口内达到该不同 IP 数即判定高危；设为 0 可关闭此规则。必须低于普通不同 IP 数；设为相等或更高时自动使用安全默认值。"
+    },
+    "high_user_agent_limit": {
+      "type": "number",
+      "default": 4,
+      "label": "高危：不同 UA 数",
+      "description": "窗口内达到该不同 User-Agent 数即判定高危；设为 0 可关闭此规则。必须低于普通不同 UA 数；设为相等或更高时自动使用安全默认值。"
+    },
+    "watch_days": {
+      "type": "number",
+      "default": 7,
+      "label": "自动解除观察天数",
+      "description": "进入观察名单后，连续未命中异常达到此天数自动解除。再次命中会重新计时。"
+    },
+    "whitelist_user_ids": {
+      "type": "text",
+      "default": "",
+      "label": "白名单用户 ID",
+      "description": "白名单跳过异常判定与凭据重置，但仍记录有效拉取。使用换行、逗号或分号分隔。"
+    },
+    "whitelist_emails": {
+      "type": "text",
+      "default": "",
+      "label": "白名单邮箱",
+      "description": "白名单跳过异常判定与凭据重置，但仍记录有效拉取。使用换行、逗号或分号分隔。"
+    },
+    "whitelist_ips": {
+      "type": "text",
+      "default": "",
+      "label": "白名单 IP / CIDR",
+      "description": "白名单跳过异常判定与凭据重置，但仍记录有效拉取。支持单个 IP 与 CIDR，使用换行、逗号或分号分隔。"
+    },
+    "send_reset_email": {
+      "type": "boolean",
+      "default": true,
+      "label": "发送风控重置邮件",
+      "description": "命中普通或高危异常并实际重置后，向用户发送对应的订阅安全通知；旧链接的重复请求不会重复发送。"
+    },
+    "normal_reset_email_subject": {
+      "type": "string",
+      "default": "订阅链接已重置",
+      "label": "普通异常邮件标题",
+      "description": "普通异常重置后发送的邮件标题。"
+    },
+    "normal_reset_email_content": {
+      "type": "text",
+      "default": "订阅拉取异常，疑似订阅泄露，现已重置订阅链接。\n\n此操作不影响已有设备使用；如需导入新设备或更新订阅，请登录官网仪表盘获取最新订阅链接。",
+      "label": "普通异常邮件内容",
+      "description": "普通异常重置后发送的正文，可使用换行。"
+    },
+    "normal_reset_email_template": {
+      "type": "string",
+      "default": "cronnotify",
+      "label": "普通异常邮件模板名",
+      "description": "当前邮件主题目录内的模板名，例如 cronnotify；仅允许字母、数字、下划线和连字符。"
+    },
+    "high_reset_email_subject": {
+      "type": "string",
+      "default": "订阅链接与设备认证已重置",
+      "label": "高危异常邮件标题",
+      "description": "高危异常重置后发送的邮件标题。"
+    },
+    "high_reset_email_content": {
+      "type": "text",
+      "default": "系统检测您的订阅链接已经严重泄露滥用，现已重置订阅链接和设备认证信息。\n\n目前所有已导入设备都已无法使用，请登录官网仪表盘获取最新订阅链接后重新使用。",
+      "label": "高危异常邮件内容",
+      "description": "高危异常重置后发送的正文，可使用换行。"
+    },
+    "high_reset_email_template": {
+      "type": "string",
+      "default": "cronnotify",
+      "label": "高危异常邮件模板名",
+      "description": "当前邮件主题目录内的模板名，例如 cronnotify；仅允许字母、数字、下划线和连字符。"
+    },
+    "send_ban_email": {
+      "type": "boolean",
+      "default": true,
+      "label": "发送封禁邮件",
+      "description": "管理员从观察名单封禁用户成功后，向该用户发送账户封禁通知。"
+    },
+    "ban_email_subject": {
+      "type": "string",
+      "default": "账户已被封禁",
+      "label": "封禁邮件标题",
+      "description": "封禁用户后发送的邮件标题。"
+    },
+    "ban_email_content": {
+      "type": "text",
+      "default": "系统检测到您的订阅存在异常使用，账户现已被封禁，无法登录或使用订阅。\n\n如认为封禁有误，请联系管理员处理。",
+      "label": "封禁邮件内容",
+      "description": "封禁用户后发送的正文，可使用换行。"
+    },
+    "ban_email_template": {
+      "type": "string",
+      "default": "cronnotify",
+      "label": "封禁邮件模板名",
+      "description": "当前邮件主题目录内的模板名，例如 cronnotify；仅允许字母、数字、下划线和连字符。"
+    },
+    "send_unban_email": {
+      "type": "boolean",
+      "default": true,
+      "label": "发送解封邮件",
+      "description": "管理员解封用户成功后，向该用户发送账户解封通知。"
+    },
+    "unban_email_subject": {
+      "type": "string",
+      "default": "账户已解除封禁",
+      "label": "解封邮件标题",
+      "description": "解封用户后发送的邮件标题。"
+    },
+    "unban_email_content": {
+      "type": "text",
+      "default": "您的账户已解除封禁，现在可以重新登录和使用订阅。\n\n账户已重新加入风控观察名单，请遵守订阅使用规则。",
+      "label": "解封邮件内容",
+      "description": "解封用户后发送的正文，可使用换行。"
+    },
+    "unban_email_template": {
+      "type": "string",
+      "default": "cronnotify",
+      "label": "解封邮件模板名",
+      "description": "当前邮件主题目录内的模板名，例如 cronnotify；仅允许字母、数字、下划线和连字符。"
+    },
+    "pull_log_retention_days": {
+      "type": "number",
+      "default": 0,
+      "label": "拉取记录保留天数",
+      "description": "订阅拉取记录保留多少天；设为 0 表示永久保留。超过期限的记录每天凌晨自动清理。"
+    },
+    "enable_log": {
+      "type": "boolean",
+      "default": true,
+      "label": "记录应用日志",
+      "description": "记录异常处理和维护任务错误；每一次有效订阅拉取、异常与解除记录都会持久保存。"
+    }
+  }
+}
