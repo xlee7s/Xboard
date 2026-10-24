@@ -42,7 +42,8 @@ class Plugin extends Model
 		'scheduled_mail_campaign',
 		'scheduled_token_reset',
 		'subscribe_rate_reset',
-		'invite_traffic_reward'
+		'invite_traffic_reward',
+		'subscription_risk_control'
     ];
 
     protected $guarded = [
