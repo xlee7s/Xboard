@@ -201,6 +201,9 @@
       setText('normal', summary.today_normal);
       setText('high', summary.today_high);
       setText('released', summary.recent_auto_released);
+      var watchDays = Math.max(1, Number(summary.watch_days || 7));
+      setText('release-window-label', '近 ' + watchDays + ' 天自动解除');
+      setText('watch-days-rule', '从最近一次异常开始，连续 ' + watchDays + ' 天未再次命中规则，将自动退出观察名单。');
       renderWatchlist(values[1]);
       renderBanlist(values[2]);
       renderPulls(values[3]);

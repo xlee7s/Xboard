@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ $title }}</title>
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.2.6">
-  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.2.6">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard.css?v=2.2.10">
+  <link rel="stylesheet" href="/plugins/subscription_risk_control/admin-dashboard-extra.css?v=2.2.10">
 </head>
 <body>
   <main class="src-page">
@@ -25,7 +25,7 @@
       <article><span>今日拉取次数</span><strong id="today-pulls">–</strong><i class="violet">全部有效订阅拉取</i></article>
       <article><span>今日普通异常</span><strong id="normal">–</strong><i>仅重置 Token</i></article>
       <article><span>今日高危异常</span><strong id="high">–</strong><i class="danger">重置 Token + UUID</i></article>
-      <article><span>近 7 天自动解除</span><strong id="released">–</strong><i class="success">已恢复普通监控</i></article>
+      <article><span id="release-window-label">近 7 天自动解除</span><strong id="released">–</strong><i class="success">已恢复普通监控</i></article>
     </section>
 
     <section class="src-panel">
@@ -58,7 +58,7 @@
         <div class="src-table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>处理结果</th><th>操作管理员</th><th>IP</th><th>原因</th></tr></thead><tbody id="events"><tr><td colspan="6" class="src-empty">正在加载…</td></tr></tbody></table></div>
         <div class="src-pager" id="events-pager"></div>
       </section>
-      <aside class="src-panel src-rules"><h2>规则说明</h2><div class="src-rule"><b>普通异常</b><p>命中普通阈值后，仅重置订阅 Token。</p></div><div class="src-rule high"><b>高危异常</b><p>命中高危阈值后，同时重置 Token 与节点认证 UUID。</p></div><div class="src-rule"><b>自动解除</b><p>从最近一次异常开始，连续 7 天未再次命中规则，将自动退出观察名单。</p></div><p class="src-tip">阈值和白名单均在插件配置页设置。</p></aside>
+      <aside class="src-panel src-rules"><h2>规则说明</h2><div class="src-rule"><b>普通异常</b><p>命中普通阈值后，仅重置订阅 Token。</p></div><div class="src-rule high"><b>高危异常</b><p>命中高危阈值后，同时重置 Token 与节点认证 UUID。</p></div><div class="src-rule"><b>自动解除</b><p id="watch-days-rule">从最近一次异常开始，连续 7 天未再次命中规则，将自动退出观察名单。</p></div><p class="src-tip">阈值和白名单均在插件配置页设置。</p></aside>
     </section>
   </main>
   <div class="src-confirm-modal" id="confirm-modal" hidden aria-hidden="true">
@@ -71,6 +71,6 @@
   </div>
   <div class="src-toast" id="toast" role="status"></div>
   <script>window.SUBSCRIPTION_RISK_CONTROL = { adminPath: @json($admin_path), embedded: @json($embedded) };</script>
-  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.2.6" defer></script>
+  <script src="/plugins/subscription_risk_control/admin-dashboard.js?v=2.2.10" defer></script>
 </body>
 </html>

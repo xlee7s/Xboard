@@ -16,7 +16,7 @@ use Plugin\SubscriptionRiskControl\Services\SubscriptionRiskService;
 
 class Plugin extends AbstractPlugin
 {
-    private const ASSET_VERSION = '2.2.6';
+    private const ASSET_VERSION = '2.2.10';
 
     public function boot(): void
     {
@@ -319,13 +319,18 @@ class Plugin extends AbstractPlugin
 
         $config = json_decode((string) $plugin->config, true) ?: [];
         $updated = false;
-        $normalWindow = max(5, (int) ($config['normal_window_minutes'] ?? 10));
-        if (array_key_exists('normal_window_minutes', $config) && (int) $config['normal_window_minutes'] < 5) {
-            $config['normal_window_minutes'] = 5;
+        $normalWindow = min(max(5, (int) ($config['normal_window_minutes'] ?? 10)), 10080);
+        if (array_key_exists('normal_window_minutes', $config) && (int) $config['normal_window_minutes'] !== $normalWindow) {
+            $config['normal_window_minutes'] = $normalWindow;
+            $updated = true;
+        }
+        $normalRequestLimit = min(max(3, (int) ($config['normal_request_limit'] ?? 12)), 100000);
+        if (array_key_exists('normal_request_limit', $config) && (int) $config['normal_request_limit'] !== $normalRequestLimit) {
+            $config['normal_request_limit'] = $normalRequestLimit;
             $updated = true;
         }
         $normal = [
-            'high_request_limit' => max(2, (int) ($config['normal_request_limit'] ?? 12)),
+            'high_request_limit' => $normalRequestLimit,
             'high_ip_limit' => max(0, (int) ($config['normal_ip_limit'] ?? 6)),
             'high_user_agent_limit' => max(0, (int) ($config['normal_user_agent_limit'] ?? 6)),
         ];
@@ -341,6 +346,18 @@ class Plugin extends AbstractPlugin
                 continue;
             }
             $value = (int) $config[$key];
+            if ($key === 'high_request_limit') {
+                if ($value < 2) {
+                    $config[$key] = 2;
+                    $updated = true;
+                    continue;
+                }
+                if ($value >= $normal[$key]) {
+                    $config[$key] = $normal[$key] - 1;
+                    $updated = true;
+                }
+                continue;
+            }
             // A zero IP/UA value explicitly disables that high-risk signal.
             // When the normal counterpart is disabled, high risk must also be
             // disabled so an optional rule cannot bypass its normal setting.
@@ -351,10 +368,10 @@ class Plugin extends AbstractPlugin
                 }
                 continue;
             }
-            if (($key !== 'high_request_limit' && $value === 0) || $value < $normal[$key]) {
+            if ($value === 0 || $value < $normal[$key]) {
                 continue;
             }
-            $config[$key] = max($key === 'high_request_limit' ? 1 : 0, min($default, $normal[$key] - 1));
+            $config[$key] = max(0, min($default, $normal[$key] - 1));
             $updated = true;
         }
 

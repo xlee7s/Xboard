@@ -21,8 +21,9 @@ class SubscriptionRiskController extends Controller
 
     public function summary(): JsonResponse
     {
-        $today = strtotime('today');
-        $sevenDaysAgo = time() - 7 * 86400;
+        $today = now()->startOfDay()->timestamp;
+        $watchDays = $this->watchDays();
+        $watchWindowStart = time() - $watchDays * 86400;
 
         return response()->json(['data' => [
             'watching' => DB::table(self::WATCHLIST_TABLE)->count(),
@@ -40,9 +41,19 @@ class SubscriptionRiskController extends Controller
                 ->count(),
             'recent_auto_released' => DB::table(self::EVENT_TABLE)
                 ->where('action', 'auto_release')
-                ->where('occurred_at', '>=', $sevenDaysAgo)
+                ->where('occurred_at', '>=', $watchWindowStart)
                 ->count(),
+            'watch_days' => $watchDays,
         ]]);
+    }
+
+    private function watchDays(): int
+    {
+        $config = json_decode((string) PluginModel::query()
+            ->where('code', 'subscription_risk_control')
+            ->value('config'), true) ?: [];
+
+        return min(max((int) ($config['watch_days'] ?? 7), 1), 365);
     }
 
     public function watchlist(Request $request): JsonResponse

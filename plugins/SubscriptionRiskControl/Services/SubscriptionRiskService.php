@@ -367,7 +367,7 @@ class SubscriptionRiskService
     private function normalizeConfig(array $values): array
     {
         $normalWindow = $this->boundedInt($values['normal_window_minutes'] ?? 10, 5, 10080);
-        $normalRequests = $this->boundedInt($values['normal_request_limit'] ?? 12, 2, 100000);
+        $normalRequests = $this->boundedInt($values['normal_request_limit'] ?? 12, 3, 100000);
         $normalIps = $this->boundedInt($values['normal_ip_limit'] ?? 6, 0, 100000);
         $normalUserAgents = $this->boundedInt($values['normal_user_agent_limit'] ?? 6, 0, 100000);
 
@@ -394,17 +394,25 @@ class SubscriptionRiskService
 
     private function highThreshold(mixed $value, int $normalThreshold, int $default, bool $allowZero = false): int
     {
-        $threshold = $this->boundedInt($value, $allowZero ? 0 : 1, 100000);
+        $threshold = $this->boundedInt($value, $allowZero ? 0 : 2, 100000);
         // An optional normal IP/UA signal set to 0 is disabled. Its high-risk
         // counterpart must be disabled as well: otherwise a supposedly closed
         // normal rule could still trigger a high-risk reset by itself.
         if ($allowZero && $normalThreshold === 0) {
             return 0;
         }
-        if (($allowZero && $threshold === 0) || $threshold < $normalThreshold) {
+        if ($allowZero && $threshold === 0) {
             return $threshold;
         }
-        return max($allowZero ? 0 : 1, min($default, $normalThreshold - 1));
+        // High-risk request counts must be strictly lower than normal counts.
+        // An equal or higher value is always reduced to one less than normal.
+        if (!$allowZero) {
+            return $threshold >= $normalThreshold ? $normalThreshold - 1 : $threshold;
+        }
+        if ($threshold < $normalThreshold) {
+            return $threshold;
+        }
+        return max(0, min($default, $normalThreshold - 1));
     }
 
     private function highWindow(mixed $value, int $normalWindow): int

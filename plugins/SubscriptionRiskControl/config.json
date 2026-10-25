@@ -1,7 +1,7 @@
 {
   "name": "订阅封控",
   "code": "subscription_risk_control",
-  "version": "2.2.6",
+  "version": "2.2.10",
   "description": "检测订阅拉取异常，按风险等级重置订阅 Token 或 Token 与 UUID，并持续观察风险账户。",
   "author": "xlee7s",
   "require": {
@@ -24,7 +24,7 @@
       "type": "number",
       "default": 12,
       "label": "普通异常：拉取次数",
-      "description": "窗口内达到该次数即判定普通异常并重置 Token。"
+      "description": "窗口内达到该次数即判定普通异常并重置 Token。最低为 3；低于 3 会自动修正为 3。"
     },
     "normal_ip_limit": {
       "type": "number",
@@ -48,7 +48,7 @@
       "type": "number",
       "default": 8,
       "label": "高危：拉取次数",
-      "description": "窗口内达到该次数即判定高危，并同时重置 Token 和 UUID。必须低于普通拉取次数；设为相等或更高时自动使用安全默认值。"
+      "description": "窗口内达到该次数即判定高危，并同时重置 Token 和 UUID。最低为 2；低于 2 会自动修正为 2。必须小于普通拉取次数；相等或更高时自动修正为普通次数减 1。"
     },
     "high_ip_limit": {
       "type": "number",
