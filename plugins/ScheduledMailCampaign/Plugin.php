@@ -2,8 +2,8 @@
 
 namespace Plugin\ScheduledMailCampaign;
 
-use App\Jobs\SendEmailJob;
 use App\Models\User;
+use App\Services\MailService;
 use App\Services\Plugin\AbstractPlugin;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +20,12 @@ class Plugin extends AbstractPlugin
 
     public function schedule(Schedule $schedule): void
     {
-        $schedule->call(fn () => $this->queueMailBatch())->everyMinute();
+        $schedule->call(fn () => $this->queueMailBatch())
+            ->name('scheduled-mail-campaign')
+            ->everyMinute()
+            // The callback sends synchronously. Keep a scheduler-level mutex
+            // until the full batch exits; the cache lock below is a second guard.
+            ->withoutOverlapping(10080);
     }
 
     private function queueMailBatch(): void
@@ -31,8 +36,13 @@ class Plugin extends AbstractPlugin
 
         $campaignId = min(max((int) $this->getConfig('campaign_id', 1), 1), 999999999);
         $keys = $this->stateKeys($campaignId);
+        $batchSize = min(max((int) $this->getConfig('batch_size', 20), 1), 100);
+        $sendInterval = min(max((int) $this->getConfig('send_interval_seconds', 3), 1), 300);
+        // Each email may wait for its SMTP request. Keep the lock for the full
+        // batch duration so the next scheduler tick cannot start a second batch.
+        $lockSeconds = (($batchSize - 1) * $sendInterval) + ($batchSize * 300) + 600;
 
-        if (!Cache::add($keys['lock'], 1, now()->addMinutes(10))) {
+        if (!Cache::add($keys['lock'], 1, now()->addSeconds($lockSeconds))) {
             return;
         }
 
@@ -45,15 +55,14 @@ class Plugin extends AbstractPlugin
                 return;
             }
 
-            $batchSize = min(max((int) $this->getConfig('batch_size', 100), 1), 500);
-            $sendInterval = min(max((int) $this->getConfig('send_interval_seconds', 1), 0), 300);
             $cursor = (int) Cache::get($keys['cursor'], 0);
             $excludedIds = $this->parseList($this->getConfig('excluded_user_ids', ''));
             $excludedEmails = $this->parseList($this->getConfig('excluded_emails', ''));
 
             $users = $this->recipientQuery($cursor, $excludedIds, $excludedEmails)
                 ->limit($batchSize)
-                ->get();
+                ->get()
+                ->values();
 
             if ($users->isEmpty()) {
                 Cache::put($keys['last_completed_at'], time(), now()->addDays($intervalDays + 7));
@@ -68,11 +77,18 @@ class Plugin extends AbstractPlugin
             $content = (string) $this->getConfig('email_content', '');
             $template = trim((string) $this->getConfig('email_template', 'cronnotify')) ?: 'cronnotify';
             $stateTtl = now()->addDays($intervalDays + 7);
-            $queued = 0;
+            $sent = 0;
+            $failed = 0;
+            $recipientCount = $users->count();
 
-            foreach ($users as $index => $user) {
-                $delaySeconds = $sendInterval * $index;
-                $job = SendEmailJob::dispatch([
+            // This intentionally sends in-process, one recipient at a time.
+            // Do not replace with queued jobs: the configured sleep interval is
+            // the delivery interval, not merely a queue dispatch delay.
+            @set_time_limit(0);
+
+            for ($index = 0; $index < $recipientCount; $index++) {
+                $user = $users[$index];
+                $mailLog = MailService::sendEmail([
                     'email' => $user->email,
                     'subject' => $subject,
                     'template_name' => $template,
@@ -86,18 +102,30 @@ class Plugin extends AbstractPlugin
                     ],
                 ]);
 
-                if ($delaySeconds > 0) {
-                    $job->delay(now()->addSeconds($delaySeconds));
+                if ($mailLog['error']) {
+                    $failed++;
+                    Log::warning('ScheduledMailCampaign mail failed', [
+                        'campaign_id' => $campaignId,
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'error' => $mailLog['error'],
+                    ]);
+                } else {
+                    $sent++;
                 }
 
                 $cursor = $user->id;
                 Cache::put($keys['cursor'], $cursor, $stateTtl);
-                $queued++;
+
+                if ($sendInterval > 0 && $index < ($recipientCount - 1)) {
+                    sleep($sendInterval);
+                }
             }
 
-            $this->log($enableLog, 'info', 'ScheduledMailCampaign queued mail batch', [
+            $this->log($enableLog, 'info', 'ScheduledMailCampaign sent mail batch', [
                 'campaign_id' => $campaignId,
-                'queued' => $queued,
+                'sent' => $sent,
+                'failed' => $failed,
                 'cursor' => $cursor,
                 'send_interval_seconds' => $sendInterval,
             ]);
