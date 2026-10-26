@@ -22,8 +22,11 @@ class PaymentController extends Controller
                 HookManager::call('payment.notify.failed', [$method, $uuid, $request]);
                 return $this->fail([422, 'verify error']);
             }
+            if (($verify['ignore'] ?? false) === true) {
+                return $verify['custom_result'] ?? 'success';
+            }
             HookManager::call('payment.notify.verified', $verify);
-            if (!$this->handle($verify['trade_no'], $verify['callback_no'])) {
+            if (!$this->handle($verify['trade_no'], $verify['callback_no'], $verify['amount'] ?? null)) {
                 return $this->fail([400, 'handle error']);
             }
             return (isset($verify['custom_result']) ? $verify['custom_result'] : 'success');
@@ -33,11 +36,23 @@ class PaymentController extends Controller
         }
     }
 
-    private function handle($tradeNo, $callbackNo)
+    private function handle($tradeNo, $callbackNo, $amount = null)
     {
         $order = Order::where('trade_no', $tradeNo)->first();
         if (!$order) {
-            return $this->fail([400202, 'order is not found']);
+            Log::warning('Payment callback order not found', ['trade_no' => $tradeNo]);
+            return false;
+        }
+        if ($amount !== null) {
+            $expectedAmount = (int) $order->total_amount + (int) ($order->handling_amount ?? 0);
+            if (!is_int($amount) || $amount !== $expectedAmount) {
+                Log::warning('Payment callback amount mismatch', [
+                    'trade_no' => $tradeNo,
+                    'expected_amount' => $expectedAmount,
+                    'callback_amount' => $amount
+                ]);
+                return false;
+            }
         }
         if ($order->status !== Order::STATUS_PENDING)
             return true;
